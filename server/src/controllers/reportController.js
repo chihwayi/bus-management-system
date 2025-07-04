@@ -541,37 +541,50 @@ class ReportController {
           const reportYear = year || new Date().getFullYear();
           const monthlyEffectiveConductorId = conductorId || req.user.conductor_id;
 
+          // Get ALL passengers with their month-end balances and transaction data
           data = this.db.prepare(`
-            SELECT
-              t.transaction_date,
-              p.full_name as passenger_name,
-              p.legacy_passenger_id,
-              u.full_name as conductor_name,
-              r.name as route_name,
-              t.transaction_type,
-              t.amount,
-              t.balance_before,
-              t.balance_after,
-              t.notes
-            FROM transactions t
-            JOIN passengers p ON t.passenger_id = p.id
-            JOIN conductors c ON t.conductor_id = c.id
-            JOIN users u ON c.user_id = u.id
-            LEFT JOIN routes r ON t.route_id = r.id
-            WHERE t.conductor_id = ? 
-            AND strftime('%m', t.transaction_date) = ? 
-            AND strftime('%Y', t.transaction_date) = ?
-            ORDER BY t.transaction_date DESC
-          `).all(
+    SELECT 
+      p.legacy_passenger_id as "Passenger ID",
+      p.full_name as "Passenger Name",
+      p.ministry as "Ministry",
+      p.boarding_area as "Boarding Area",
+      -- Count transactions for this conductor in this month
+      COUNT(t.id) as "Transactions",
+      -- Total amount paid (boarding fees only)
+      COALESCE(SUM(CASE WHEN t.transaction_type = 'boarding' THEN ABS(t.amount) ELSE 0 END), 0) as "Total Paid",
+      -- Calculate balance at end of month based on transactions
+      COALESCE(
+        (
+          SELECT 
+            t2.balance_after 
+          FROM transactions t2 
+          WHERE t2.passenger_id = p.id 
+          AND strftime('%m', t2.transaction_date) = ?
+          AND strftime('%Y', t2.transaction_date) = ?
+          ORDER BY t2.transaction_date DESC, t2.id DESC 
+          LIMIT 1
+        ), 
+        p.current_balance
+      ) as "Month-end Balance"
+    FROM passengers p
+    LEFT JOIN transactions t ON p.id = t.passenger_id 
+      AND t.conductor_id = ?
+      AND strftime('%m', t.transaction_date) = ?
+      AND strftime('%Y', t.transaction_date) = ?
+    WHERE p.is_active = 1
+    GROUP BY p.id
+    ORDER BY p.full_name
+  `).all(
+            reportMonth.toString().padStart(2, '0'),
+            reportYear.toString(),
             monthlyEffectiveConductorId,
             reportMonth.toString().padStart(2, '0'),
             reportYear.toString()
           );
-          filename = `monthly_report_${reportMonth}_${reportYear}.csv`;
-          break;
 
+          filename = `monthly_passengers_report_${reportMonth}_${reportYear}.csv`;
           break;
-
+          
         case 'transactions':
           const txnStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
           const txnEnd = endDate || new Date().toISOString().split('T')[0];
