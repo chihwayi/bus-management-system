@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PSC Bus Management API Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .auth-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .auth-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .auth-form {
+            display: flex;
+            gap: 10px;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 150px;
+        }
+        
+        .form-group label {
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        
+        input, select, textarea {
+            padding: 10px;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .endpoint-section {
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .endpoint-header {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e9ecef;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .endpoint-header:hover {
+            background: #e9ecef;
+        }
+        
+        .endpoint-title {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .method-tag {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .method-get { background: #28a745; }
+        .method-post { background: #007bff; }
+        .method-put { background: #ffc107; color: #333; }
+        .method-delete { background: #dc3545; }
+        
+        .endpoint-content {
+            padding: 20px;
+            display: none;
+        }
+        
+        .endpoint-content.active {
+            display: block;
+        }
+        
+        .test-form {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .response-section {
+            margin-top: 20px;
+        }
+        
+        .response-header {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .response-content {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-success { background: #28a745; }
+        .status-error { background: #dc3545; }
+        .status-pending { background: #ffc107; }
+        
+        .token-display {
+            background: #e7f3ff;
+            border: 1px solid #b3d7ff;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .quick-action-btn {
+            background: #28a745;
+            font-size: 12px;
+            padding: 8px 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚌 PSC Bus Management System</h1>
+            <p>Enhanced API Testing Interface</p>
+        </div>
+
+        <!-- Authentication Section -->
+        <div class="auth-section">
+            <h3>🔐 Authentication</h3>
+            <div class="auth-form">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="username" value="admin" placeholder="Enter username">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" value="admin123" placeholder="Enter password">
+                </div>
+                <button onclick="login()">Login</button>
+                <button onclick="clearToken()">Clear Token</button>
+            </div>
+            <div id="tokenDisplay"></div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <button class="quick-action-btn" onclick="quickTest('health')">Test Health</button>
+            <button class="quick-action-btn" onclick="quickTest('routes')">Get Routes</button>
+            <button class="quick-action-btn" onclick="quickTest('passengers')">Get Passengers</button>
+            <button class="quick-action-btn" onclick="quickTest('conductors')">Get Conductors</button>
+        </div>
+
+        <!-- Endpoints -->
+        <div id="endpoints"></div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:5000';
+        let authToken = '';
+        
+        // Initialize token from localStorage (but don't rely on it for persistence)
+        if (typeof Storage !== 'undefined') {
+            authToken = localStorage.getItem('authToken') || '';
+        }
+        
+        // Endpoint definitions
+        const endpoints = [
+            {
+                category: 'System',
+                items: [
+                    {
+                        name: 'Health Check',
+                        method: 'GET',
+                        path: '/health',
+                        requiresAuth: false,
+                        description: 'Check if the server is running'
+                    }
+                ]
+            },
+            {
+                category: 'Authentication',
+                items: [
+                    {
+                        name: 'Get Current User',
+                        method: 'GET',
+                        path: '/api/auth/me',
+                        requiresAuth: true,
+                        description: 'Get current authenticated user details'
+                    },
+                    {
+                        name: 'Change Password',
+                        method: 'POST',
+                        path: '/api/auth/change-password',
+                        requiresAuth: true,
+                        description: 'Change user password',
+                        body: {
+                            currentPassword: 'admin123',
+                            newPassword: 'newpassword123'
+                        }
+                    }
+                ]
+            },
+            {
+                category: 'Routes',
+                items: [
+                    {
+                        name: 'Get All Routes',
+                        method: 'GET',
+                        path: '/api/routes',
+                        requiresAuth: true,
+                        description: 'Fetch all available routes'
+                    },
+                    {
+                        name: 'Create Route',
+                        method: 'POST',
+                        path: '/api/routes',
+                        requiresAuth: true,
+                        description: 'Create a new route (Admin only)',
+                        body: {
+                            name: 'Test Route',
+                            boardingArea: 'Test Area',
+                            distanceKm: 15.5,
+                            baseFare: 3.00
+                        }
+                    },
+                    {
+                        name: 'Get Route by ID',
+                        method: 'GET',
+                        path: '/api/routes/{id}',
+                        requiresAuth: true,
+                        description: 'Get specific route details',
+                        params: { id: '' }
+                    },
+                    {
+                        name: 'Update Route',
+                        method: 'PUT',
+                        path: '/api/routes/{id}',
+                        requiresAuth: true,
+                        description: 'Update an existing route (Admin only)',
+                        params: { id: '' },
+                        body: {
+                            name: 'Updated Route Name',
+                            boardingArea: 'Updated Boarding Area',
+                            distanceKm: 20.0,
+                            baseFare: 4.50
+                        }
+                    },
+                    {
+                        name: 'Delete Route',
+                        method: 'DELETE',
+                        path: '/api/routes/{id}',
+                        requiresAuth: true,
+                        description: 'Soft delete a route (Admin only)',
+                        params: { id: '' }
+                    },
+                    {
+                        name: 'Get Route Passengers',
+                        method: 'GET',
+                        path: '/api/routes/{id}/passengers',
+                        requiresAuth: true,
+                        description: 'Get all passengers assigned to a specific route',
+                        params: { id: '' }
+                    },
+                    {
+                        name: 'Get Route Conductors',
+                        method: 'GET',
+                        path: '/api/routes/{id}/conductors',
+                        requiresAuth: true,
+                        description: 'Get all conductors assigned to a specific route',
+                        params: { id: '' }
+                    },
+                    {
+                        name: 'Get Route Statistics',
+                        method: 'GET',
+                        path: '/api/routes/{id}/stats',
+                        requiresAuth: true,
+                        description: 'Get comprehensive statistics for a specific route',
+                        params: { id: '' }
+                    }
+                ]
+            },
+            {
+                category: 'Passengers',
+                items: [
+                    {
+                        name: 'Get All Passengers',
+                        method: 'GET',
+                        path: '/api/passengers',
+                        requiresAuth: true,
+                        description: 'Fetch all passengers with optional filtering',
+                        params: { 
+                            limit: '20',
+                            offset: '0',
+                            routeId: '',
+                            search: ''
+                        }
+                    },
+                    {
+                        name: 'Create Passenger',
+                        method: 'POST',
+                        path: '/api/passengers',
+                        requiresAuth: true,
+                        description: 'Register a new passenger',
+                        body: {
+                            fullName: 'John Doe',
+                            ministry: 'Ministry of Health',
+                            boardingArea: 'City Center',
+                            currentBalance: 50.00
+                        }
+                    },
+                    {
+                        name: 'Get Passenger by ID',
+                        method: 'GET',
+                        path: '/api/passengers/{id}',
+                        requiresAuth: true,
+                        description: 'Get specific passenger details',
+                        params: { id: '' }
+                    },
+                    {
+                        name: 'Board Passenger (Deduct Fare)',
+                        method: 'POST',
+                        path: '/api/passengers/{id}/board',
+                        requiresAuth: true,
+                        description: 'Process passenger boarding and deduct fare',
+                        params: { id: '' },
+                        body: {
+                            routeId: '',
+                            conductorId: '',
+                            fareAmount: 2.00
+                        }
+                    },
+                    {
+                        name: 'Top Up Balance',
+                        method: 'POST',
+                        path: '/api/passengers/{id}/topup',
+                        requiresAuth: true,
+                        description: 'Add money to passenger balance',
+                        params: { id: '' },
+                        body: {
+                            amount: 25.00,
+                            notes: 'Balance top-up'
+                        }
+                    }
+                ]
+            },
+            {
+                category: 'Conductors',
+                items: [
+                    {
+                        name: 'Get All Conductors',
+                        method: 'GET',
+                        path: '/api/conductors',
+                        requiresAuth: true,
+                        description: 'Fetch all conductors'
+                    },
+                    {
+                        name: 'Create Conductor',
+                        method: 'POST',
+                        path: '/api/conductors',
+                        requiresAuth: true,
+                        description: 'Create new conductor (Admin only)',
+                        body: {
+                            username: 'conductor1',
+                            password: 'password123',
+                            fullName: 'Conductor One',
+                            employeeId: 'EMP001'
+                        }
+                    }
+                ]
+            },
+            {
+                category: 'Boarding',
+                items: [
+                    {
+                        name: 'Get Conductor Today Stats',
+                        method: 'GET',
+                        path: '/api/boarding/today',
+                        requiresAuth: true,
+                        description: 'Get current conductor\'s boarding statistics for today'
+                    },
+                    {
+                        name: 'Get Recent Boardings',
+                        method: 'GET',
+                        path: '/api/boarding/recent',
+                        requiresAuth: true,
+                        description: 'Get recent boarding activities for the conductor'
+                    },
+                    {
+                        name: 'Get Today Conductors Stats (Admin)',
+                        method: 'GET',
+                        path: '/api/boarding/admin/conductors',
+                        requiresAuth: true,
+                        description: 'Get today\'s statistics for all conductors (Admin only)'
+                    },
+                    {
+                        name: 'Get Today Routes Stats (Admin)',
+                        method: 'GET',
+                        path: '/api/boarding/admin/routes',
+                        requiresAuth: true,
+                        description: 'Get today\'s statistics for all routes (Admin only)'
+                    }
+                ]
+            },
+            {
+                category: 'Reports',
+                items: [
+                    {
+                        name: 'Conductor Daily Report',
+                        method: 'GET',
+                        path: '/api/reports/conductor/daily',
+                        requiresAuth: true,
+                        description: 'Get daily report for conductor',
+                        params: { 
+                            date: new Date().toISOString().split('T')[0]
+                        }
+                    },
+                    {
+                        name: 'Admin Overview',
+                        method: 'GET',
+                        path: '/api/reports/admin/overview',
+                        requiresAuth: true,
+                        description: 'Get system overview (Admin only)'
+                    }
+                ]
+            }
+        ];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTokenDisplay();
+            renderEndpoints();
+        });
+
+        function updateTokenDisplay() {
+            const tokenDiv = document.getElementById('tokenDisplay');
+            if (authToken) {
+                tokenDiv.innerHTML = `
+                    <div class="token-display">
+                        <strong>🔑 Auth Token:</strong><br>
+                        ${authToken.substring(0, 50)}...
+                    </div>
+                `;
+            } else {
+                tokenDiv.innerHTML = '<p><em>No authentication token. Please login first.</em></p>';
+            }
+        }
+
+        function renderEndpoints() {
+            const container = document.getElementById('endpoints');
+            container.innerHTML = endpoints.map(category => `
+                <div class="endpoint-section">
+                    <div class="endpoint-header" onclick="toggleCategory('${category.category}')">
+                        <span class="endpoint-title">📁 ${category.category}</span>
+                        <span>▼</span>
+                    </div>
+                    <div class="endpoint-content" id="category-${category.category}">
+                        ${category.items.map((endpoint, index) => `
+                            <div class="endpoint-section" style="margin-bottom: 15px; box-shadow: none;">
+                                <div class="endpoint-header" onclick="toggleEndpoint('${category.category}-${index}')">
+                                    <span class="endpoint-title">${endpoint.name}</span>
+                                    <div>
+                                        <span class="method-tag method-${endpoint.method.toLowerCase()}">${endpoint.method}</span>
+                                        <span>▼</span>
+                                    </div>
+                                </div>
+                                <div class="endpoint-content" id="endpoint-${category.category}-${index}">
+                                    ${renderEndpointForm(endpoint, `${category.category}-${index}`)}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderEndpointForm(endpoint, id) {
+            let formHtml = `
+                <p><strong>Description:</strong> ${endpoint.description}</p>
+                <p><strong>Path:</strong> <code>${endpoint.path}</code></p>
+                <p><strong>Requires Auth:</strong> ${endpoint.requiresAuth ? '✅ Yes' : '❌ No'}</p>
+                <div class="test-form">
+            `;
+
+            // URL Parameters
+            if (endpoint.params) {
+                formHtml += '<h4>URL Parameters:</h4><div class="form-row">';
+                Object.keys(endpoint.params).forEach(param => {
+                    formHtml += `
+                        <div class="form-group">
+                            <label>${param}</label>
+                            <input type="text" id="${id}-param-${param}" value="${endpoint.params[param]}" placeholder="Enter ${param}">
+                        </div>
+                    `;
+                });
+                formHtml += '</div>';
+            }
+
+            // Request Body
+            if (endpoint.body) {
+                formHtml += '<h4>Request Body:</h4>';
+                formHtml += `<textarea id="${id}-body" rows="6" placeholder="JSON request body">${JSON.stringify(endpoint.body, null, 2)}</textarea>`;
+            }
+
+            // Test button
+            formHtml += `
+                <button onclick="testEndpoint('${id}')" style="margin-top: 15px;">
+                    🧪 Test Endpoint
+                </button>
+                </div>
+                <div class="response-section" id="${id}-response" style="display: none;">
+                    <div class="response-header">📡 Response:</div>
+                    <div class="response-content" id="${id}-response-content"></div>
+                </div>
+            `;
+
+            return formHtml;
+        }
+
+        function toggleCategory(categoryName) {
+            const content = document.getElementById(`category-${categoryName}`);
+            content.classList.toggle('active');
+        }
+
+        function toggleEndpoint(endpointId) {
+            const content = document.getElementById(`endpoint-${endpointId}`);
+            content.classList.toggle('active');
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) {
+                alert('Please enter both username and password');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    authToken = data.data.token;
+                    if (typeof Storage !== 'undefined') {
+                        localStorage.setItem('authToken', authToken);
+                    }
+                    updateTokenDisplay();
+                    alert('✅ Login successful!');
+                } else {
+                    alert('❌ Login failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('❌ Login failed: ' + error.message);
+            }
+        }
+
+        function clearToken() {
+            authToken = '';
+            if (typeof Storage !== 'undefined') {
+                localStorage.removeItem('authToken');
+            }
+            updateTokenDisplay();
+            alert('🔓 Token cleared');
+        }
+
+        async function testEndpoint(endpointId) {
+            const [category, index] = endpointId.split('-');
+            const endpoint = endpoints.find(cat => cat.category === category).items[index];
+            
+            let url = BASE_URL + endpoint.path;
+            let body = null;
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            // Add auth header if required
+            if (endpoint.requiresAuth) {
+                if (!authToken) {
+                    alert('❌ This endpoint requires authentication. Please login first.');
+                    return;
+                }
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+
+            // Handle URL parameters
+            if (endpoint.params) {
+                Object.keys(endpoint.params).forEach(param => {
+                    const value = document.getElementById(`${endpointId}-param-${param}`).value;
+                    if (param === 'id' && url.includes('{id}')) {
+                        url = url.replace('{id}', value);
+                    } else if (value) {
+                        const separator = url.includes('?') ? '&' : '?';
+                        url += `${separator}${param}=${encodeURIComponent(value)}`;
+                    }
+                });
+            }
+
+            // Handle request body
+            if (endpoint.body) {
+                const bodyText = document.getElementById(`${endpointId}-body`).value;
+                try {
+                    body = JSON.stringify(JSON.parse(bodyText));
+                } catch (error) {
+                    alert('❌ Invalid JSON in request body');
+                    return;
+                }
+            }
+
+            // Show response section
+            const responseSection = document.getElementById(`${endpointId}-response`);
+            const responseContent = document.getElementById(`${endpointId}-response-content`);
+            responseSection.style.display = 'block';
+            responseContent.textContent = 'Loading...';
+
+            try {
+                const startTime = Date.now();
+                const response = await fetch(url, {
+                    method: endpoint.method,
+                    headers,
+                    body
+                });
+                const endTime = Date.now();
+
+                const responseData = await response.json();
+                const statusClass = response.ok ? 'status-success' : 'status-error';
+                
+                responseContent.innerHTML = `
+<span class="status-indicator ${statusClass}"></span>Status: ${response.status} ${response.statusText}
+Time: ${endTime - startTime}ms
+URL: ${url}
+
+Response:
+${JSON.stringify(responseData, null, 2)}`;
+
+            } catch (error) {
+                responseContent.innerHTML = `
+<span class="status-indicator status-error"></span>Error: ${error.message}
+URL: ${url}`;
+            }
+        }
+
+        async function quickTest(type) {
+            const tests = {
+                health: { method: 'GET', path: '/health', auth: false },
+                routes: { method: 'GET', path: '/api/routes', auth: true },
+                passengers: { method: 'GET', path: '/api/passengers?limit=5', auth: true },
+                conductors: { method: 'GET', path: '/api/conductors', auth: true }
+            };
+
+            const test = tests[type];
+            if (!test) return;
+
+            const headers = { 'Content-Type': 'application/json' };
+            if (test.auth && authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+
+            try {
+                const response = await fetch(`${BASE_URL}${test.path}`, {
+                    method: test.method,
+                    headers
+                });
+                const data = await response.json();
+                
+                const status = response.ok ? '✅' : '❌';
+                alert(`${status} ${type.toUpperCase()} Test\nStatus: ${response.status}\nRecords: ${data.data?.length || 'N/A'}`);
+            } catch (error) {
+                alert(`❌ ${type.toUpperCase()} Test Failed\n${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

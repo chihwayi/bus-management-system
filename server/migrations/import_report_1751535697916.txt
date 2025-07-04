@@ -1,0 +1,13 @@
+PSC Bus Management System - Import Report
+==================================================
+Import Date: 2025-07-03T09:41:37.916Z
+Successful Imports: 115
+Failed Imports: 0
+
+Errors:
+
+Next Steps:
+1. Review any failed imports and correct data if needed
+2. Assign conductors to routes in the admin panel
+3. Set appropriate fare amounts for each route
+4. Test the system with a few boarding transactions
