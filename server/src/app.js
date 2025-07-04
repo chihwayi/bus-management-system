@@ -1,4 +1,13 @@
 require('dotenv').config();
+
+// Debug environment variables
+console.log('🔍 Environment Debug:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('PORT:', process.env.PORT);
+console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
+console.log('JWT_SECRET length:', process.env.JWT_SECRET?.length || 0);
+console.log('All JWT related vars:', Object.keys(process.env).filter(key => key.includes('JWT')));
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -44,6 +53,8 @@ app.use(cors({
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:3001',
+      'http://173.212.195.88:8090',
+      'http://173.212.195.88',
       process.env.CLIENT_URL
     ].filter(Boolean);
     
