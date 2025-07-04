@@ -22,15 +22,14 @@ class ReportController {
 
       // Get daily statistics
       const dailyStats = this.db.prepare(`
-      SELECT
-        COUNT(*) as total_boardings,
-        COUNT(DISTINCT passenger_id) as unique_passengers,
-        COALESCE(SUM(CASE WHEN transaction_type = 'boarding' THEN ABS(amount) ELSE 0 END), 0) as total_revenue,
-        COALESCE(SUM(CASE WHEN transaction_type = 'topup' THEN amount ELSE 0 END), 0) as total_topups
-      FROM transactions
-      WHERE conductor_id = ? AND DATE(transaction_date) = DATE(?)
-    `).get(effectiveConductorId, reportDate);
-
+        SELECT
+          COUNT(*) as total_boardings,
+          COUNT(DISTINCT passenger_id) as unique_passengers,
+          COALESCE(SUM(CASE WHEN transaction_type = 'boarding' THEN ABS(amount) ELSE 0 END), 0) as total_revenue,
+          COALESCE(SUM(CASE WHEN transaction_type = 'topup' THEN amount ELSE 0 END), 0) as total_topups
+        FROM transactions
+        WHERE conductor_id = ? AND DATE(transaction_date) = DATE(?)
+      `).get(effectiveConductorId, reportDate);
 
       // Get hourly breakdown
       const hourlyBreakdown = this.db.prepare(`
@@ -43,11 +42,12 @@ class ReportController {
         AND DATE(transaction_date) = DATE(?) AND transaction_type = 'boarding'
         GROUP BY strftime('%H', transaction_date)
         ORDER BY hour
-      `).all(conductorId, reportDate);
+      `).all(effectiveConductorId, reportDate);
 
       // Get passenger details
       const passengerDetails = this.db.prepare(`
         SELECT
+          p.id,
           p.full_name,
           p.legacy_passenger_id,
           COUNT(t.id) as boarding_count,
@@ -58,19 +58,43 @@ class ReportController {
         WHERE t.conductor_id = ? AND DATE(t.transaction_date) = DATE(?)
         GROUP BY p.id
         ORDER BY p.full_name
-      `).all(conductorId, reportDate);
+      `).all(effectiveConductorId, reportDate);
 
+      // Get recent transactions for the day
+      const recentTransactions = this.db.prepare(`
+        SELECT 
+          t.*,
+          p.full_name as passenger_name,
+          p.legacy_passenger_id,
+          u.full_name as conductor_name
+        FROM transactions t
+        JOIN passengers p ON t.passenger_id = p.id
+        JOIN conductors c ON t.conductor_id = c.id
+        JOIN users u ON c.user_id = u.id
+        WHERE t.conductor_id = ? AND DATE(t.transaction_date) = DATE(?)
+        ORDER BY t.transaction_date DESC
+        LIMIT 50
+      `).all(effectiveConductorId, reportDate);
+
+      // Add transactions to each passenger
       passengerDetails.forEach(passenger => {
         passenger.transactions = this.db.prepare(`
-    SELECT * FROM transactions 
-    WHERE passenger_id = ? AND conductor_id = ? AND DATE(transaction_date) = DATE(?)
-    ORDER BY transaction_date DESC
-    LIMIT 5
-  `).all(passenger.id, conductorId, reportDate);
+          SELECT 
+            t.*,
+            p.full_name as passenger_name,
+            u.full_name as conductor_name
+          FROM transactions t
+          JOIN passengers p ON t.passenger_id = p.id
+          JOIN conductors c ON t.conductor_id = c.id
+          JOIN users u ON c.user_id = u.id
+          WHERE t.passenger_id = ? AND t.conductor_id = ? AND DATE(t.transaction_date) = DATE(?)
+          ORDER BY t.transaction_date DESC
+          LIMIT 5
+        `).all(passenger.id, effectiveConductorId, reportDate);
       });
 
       // Get conductor info
-      const conductor = this.dbManager.getConductor(conductorId);
+      const conductor = this.dbManager.getConductor(effectiveConductorId);
 
       res.json({
         success: true,
@@ -82,7 +106,8 @@ class ReportController {
           },
           summary: dailyStats,
           hourlyBreakdown,
-          passengerDetails
+          passengerDetails,
+          recentTransactions // Add this to the response
         }
       });
     } catch (error) {
@@ -111,50 +136,74 @@ class ReportController {
 
       // Get weekly statistics
       const weeklyStats = this.db.prepare(`
-      SELECT
-        COUNT(*) as total_boardings,
-        COUNT(DISTINCT passenger_id) as unique_passengers,
-        COALESCE(SUM(CASE WHEN transaction_type = 'boarding' THEN ABS(amount) ELSE 0 END), 0) as total_revenue,
-        COALESCE(SUM(CASE WHEN transaction_type = 'topup' THEN amount ELSE 0 END), 0) as total_topups
-      FROM transactions
-      WHERE conductor_id = ? AND DATE(transaction_date) BETWEEN DATE(?) AND DATE(?)
-    `).get(effectiveConductorId, start, end);
+        SELECT
+          COUNT(*) as total_boardings,
+          COUNT(DISTINCT passenger_id) as unique_passengers,
+          COALESCE(SUM(CASE WHEN transaction_type = 'boarding' THEN ABS(amount) ELSE 0 END), 0) as total_revenue,
+          COALESCE(SUM(CASE WHEN transaction_type = 'topup' THEN amount ELSE 0 END), 0) as total_topups
+        FROM transactions
+        WHERE conductor_id = ? AND DATE(transaction_date) BETWEEN DATE(?) AND DATE(?)
+      `).get(effectiveConductorId, start, end);
 
       // Get daily breakdown
       const dailyBreakdown = this.db.prepare(`
-      SELECT
-        DATE(transaction_date) as date,
-        COUNT(*) as boardings,
-        COUNT(DISTINCT passenger_id) as unique_passengers,
-        COALESCE(SUM(CASE WHEN transaction_type = 'boarding' THEN ABS(amount) ELSE 0 END), 0) as revenue
-      FROM transactions
-      WHERE conductor_id = ? AND DATE(transaction_date) BETWEEN DATE(?) AND DATE(?)
-      GROUP BY DATE(transaction_date)
-      ORDER BY date
-    `).all(effectiveConductorId, start, end);
+        SELECT
+          DATE(transaction_date) as date,
+          COUNT(*) as boardings,
+          COUNT(DISTINCT passenger_id) as unique_passengers,
+          COALESCE(SUM(CASE WHEN transaction_type = 'boarding' THEN ABS(amount) ELSE 0 END), 0) as revenue
+        FROM transactions
+        WHERE conductor_id = ? AND DATE(transaction_date) BETWEEN DATE(?) AND DATE(?)
+        GROUP BY DATE(transaction_date)
+        ORDER BY date
+      `).all(effectiveConductorId, start, end);
+
+      // Get recent transactions for the week
+      const recentTransactions = this.db.prepare(`
+        SELECT 
+          t.*,
+          p.full_name as passenger_name,
+          p.legacy_passenger_id,
+          u.full_name as conductor_name
+        FROM transactions t
+        JOIN passengers p ON t.passenger_id = p.id
+        JOIN conductors c ON t.conductor_id = c.id
+        JOIN users u ON c.user_id = u.id
+        WHERE t.conductor_id = ? AND DATE(t.transaction_date) BETWEEN DATE(?) AND DATE(?)
+        ORDER BY t.transaction_date DESC
+        LIMIT 50
+      `).all(effectiveConductorId, start, end);
 
       // Get top passengers
       const topPassengers = this.db.prepare(`
-      SELECT
-        p.full_name,
-        p.legacy_passenger_id,
-        COUNT(t.id) as boarding_count,
-        COALESCE(SUM(CASE WHEN t.transaction_type = 'boarding' THEN ABS(t.amount) ELSE 0 END), 0) as total_paid
-      FROM transactions t
-      JOIN passengers p ON t.passenger_id = p.id
-      WHERE t.conductor_id = ? AND DATE(t.transaction_date) BETWEEN DATE(?) AND DATE(?)
-      GROUP BY p.id
-      ORDER BY boarding_count DESC
-      LIMIT 10
-    `).all(effectiveConductorId, start, end);
+        SELECT
+          p.id,
+          p.full_name,
+          p.legacy_passenger_id,
+          COUNT(t.id) as boarding_count,
+          COALESCE(SUM(CASE WHEN t.transaction_type = 'boarding' THEN ABS(t.amount) ELSE 0 END), 0) as total_paid
+        FROM transactions t
+        JOIN passengers p ON t.passenger_id = p.id
+        WHERE t.conductor_id = ? AND DATE(t.transaction_date) BETWEEN DATE(?) AND DATE(?)
+        GROUP BY p.id
+        ORDER BY boarding_count DESC
+        LIMIT 10
+      `).all(effectiveConductorId, start, end);
 
       topPassengers.forEach(passenger => {
         passenger.transactions = this.db.prepare(`
-    SELECT * FROM transactions 
-    WHERE passenger_id = ? AND conductor_id = ? AND DATE(transaction_date) BETWEEN DATE(?) AND DATE(?)
-    ORDER BY transaction_date DESC
-    LIMIT 5
-  `).all(passenger.id, effectiveConductorId, start, end);
+          SELECT 
+            t.*,
+            p.full_name as passenger_name,
+            u.full_name as conductor_name
+          FROM transactions t
+          JOIN passengers p ON t.passenger_id = p.id
+          JOIN conductors c ON t.conductor_id = c.id
+          JOIN users u ON c.user_id = u.id
+          WHERE t.passenger_id = ? AND t.conductor_id = ? AND DATE(t.transaction_date) BETWEEN DATE(?) AND DATE(?)
+          ORDER BY t.transaction_date DESC
+          LIMIT 5
+        `).all(passenger.id, effectiveConductorId, start, end);
       });
 
       const conductor = this.dbManager.getConductor(effectiveConductorId);
@@ -169,7 +218,8 @@ class ReportController {
           },
           summary: weeklyStats,
           dailyBreakdown,
-          topPassengers
+          topPassengers,
+          recentTransactions // Add this to the response
         }
       });
     } catch (error) {
@@ -198,17 +248,17 @@ class ReportController {
 
       // Get monthly statistics
       const monthlyStats = this.db.prepare(`
-      SELECT
-        COUNT(*) as total_boardings,
-        COUNT(DISTINCT passenger_id) as unique_passengers,
-        COALESCE(SUM(CASE WHEN transaction_type = 'boarding' THEN ABS(amount) ELSE 0 END), 0) as total_revenue,
-        COALESCE(SUM(CASE WHEN transaction_type = 'topup' THEN amount ELSE 0 END), 0) as total_topups,
-        COUNT(DISTINCT DATE(transaction_date)) as working_days
-      FROM transactions
-      WHERE conductor_id = ?
-      AND strftime('%m', transaction_date) = ?
-      AND strftime('%Y', transaction_date) = ?
-    `).get(
+        SELECT
+          COUNT(*) as total_boardings,
+          COUNT(DISTINCT passenger_id) as unique_passengers,
+          COALESCE(SUM(CASE WHEN transaction_type = 'boarding' THEN ABS(amount) ELSE 0 END), 0) as total_revenue,
+          COALESCE(SUM(CASE WHEN transaction_type = 'topup' THEN amount ELSE 0 END), 0) as total_topups,
+          COUNT(DISTINCT DATE(transaction_date)) as working_days
+        FROM transactions
+        WHERE conductor_id = ?
+        AND strftime('%m', transaction_date) = ?
+        AND strftime('%Y', transaction_date) = ?
+      `).get(
         effectiveConductorId,
         reportMonth.toString().padStart(2, '0'),
         reportYear.toString()
@@ -216,17 +266,17 @@ class ReportController {
 
       // Get daily breakdown for the month
       const dailyBreakdown = this.db.prepare(`
-      SELECT
-        DATE(transaction_date) as date,
-        COUNT(*) as boardings,
-        COALESCE(SUM(CASE WHEN transaction_type = 'boarding' THEN ABS(amount) ELSE 0 END), 0) as revenue
-      FROM transactions
-      WHERE conductor_id = ?
-      AND strftime('%m', transaction_date) = ?
-      AND strftime('%Y', transaction_date) = ?
-      GROUP BY DATE(transaction_date)
-      ORDER BY date
-    `).all(
+        SELECT
+          DATE(transaction_date) as date,
+          COUNT(*) as boardings,
+          COALESCE(SUM(CASE WHEN transaction_type = 'boarding' THEN ABS(amount) ELSE 0 END), 0) as revenue
+        FROM transactions
+        WHERE conductor_id = ?
+        AND strftime('%m', transaction_date) = ?
+        AND strftime('%Y', transaction_date) = ?
+        GROUP BY DATE(transaction_date)
+        ORDER BY date
+      `).all(
         effectiveConductorId,
         reportMonth.toString().padStart(2, '0'),
         reportYear.toString()
@@ -234,13 +284,63 @@ class ReportController {
 
       // Get recent transactions for the month
       const recentTransactions = this.db.prepare(`
-  SELECT * FROM transactions
-  WHERE conductor_id = ?
-  AND strftime('%m', transaction_date) = ?
-  AND strftime('%Y', transaction_date) = ?
-  ORDER BY transaction_date DESC
-  LIMIT 50
-`).all(
+        SELECT 
+          t.*,
+          p.full_name as passenger_name,
+          p.legacy_passenger_id,
+          u.full_name as conductor_name
+        FROM transactions t
+        JOIN passengers p ON t.passenger_id = p.id
+        JOIN conductors c ON t.conductor_id = c.id
+        JOIN users u ON c.user_id = u.id
+        WHERE t.conductor_id = ?
+        AND strftime('%m', t.transaction_date) = ?
+        AND strftime('%Y', t.transaction_date) = ?
+        ORDER BY t.transaction_date DESC
+        LIMIT 50
+      `).all(
+        effectiveConductorId,
+        reportMonth.toString().padStart(2, '0'),
+        reportYear.toString()
+      );
+
+      // Get ALL passengers with their balances as at the end of the month
+      // This shows balance at the time of report generation, not current balance
+      const allPassengers = this.db.prepare(`
+        SELECT DISTINCT
+          p.id,
+          p.full_name,
+          p.legacy_passenger_id,
+          p.ministry,
+          p.boarding_area,
+          -- Calculate balance at end of month based on transactions
+          COALESCE(
+            (
+              SELECT 
+                t2.balance_after 
+              FROM transactions t2 
+              WHERE t2.passenger_id = p.id 
+              AND strftime('%m', t2.transaction_date) = ?
+              AND strftime('%Y', t2.transaction_date) = ?
+              ORDER BY t2.transaction_date DESC, t2.id DESC 
+              LIMIT 1
+            ), 
+            p.current_balance
+          ) as balance_at_month_end,
+          -- Count transactions for this conductor in this month
+          COUNT(t.id) as transaction_count,
+          COALESCE(SUM(CASE WHEN t.transaction_type = 'boarding' THEN ABS(t.amount) ELSE 0 END), 0) as total_paid
+        FROM passengers p
+        LEFT JOIN transactions t ON p.id = t.passenger_id 
+          AND t.conductor_id = ?
+          AND strftime('%m', t.transaction_date) = ?
+          AND strftime('%Y', t.transaction_date) = ?
+        WHERE p.is_active = 1
+        GROUP BY p.id
+        ORDER BY p.full_name
+      `).all(
+        reportMonth.toString().padStart(2, '0'),
+        reportYear.toString(),
         effectiveConductorId,
         reportMonth.toString().padStart(2, '0'),
         reportYear.toString()
@@ -258,7 +358,8 @@ class ReportController {
           },
           summary: monthlyStats,
           dailyBreakdown,
-          transactions: recentTransactions
+          recentTransactions, // Fixed: Added recentTransactions
+          allPassengers // New: Added all passengers with month-end balances
         }
       });
     } catch (error) {
@@ -366,7 +467,7 @@ class ReportController {
   async exportReport(req, res) {
     try {
       const { type } = req.params;
-      const { startDate, endDate, conductorId } = req.query;
+      const { startDate, endDate, conductorId, date, month, year } = req.query;
 
       // Check permissions
       if (req.user.role !== 'admin' && conductorId && conductorId !== req.user.conductor_id) {
@@ -376,16 +477,106 @@ class ReportController {
         });
       }
 
-      const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const end = endDate || new Date().toISOString().split('T')[0];
-
       let data = [];
       let filename = '';
 
       switch (type) {
+        case 'daily':
+          const reportDate = date || new Date().toISOString().split('T')[0];
+          const effectiveConductorId = conductorId || req.user.conductor_id;
+
+          data = this.db.prepare(`
+            SELECT
+              t.transaction_date,
+              p.full_name as passenger_name,
+              p.legacy_passenger_id,
+              u.full_name as conductor_name,
+              r.name as route_name,
+              t.transaction_type,
+              t.amount,
+              t.balance_before,
+              t.balance_after,
+              t.notes
+            FROM transactions t
+            JOIN passengers p ON t.passenger_id = p.id
+            JOIN conductors c ON t.conductor_id = c.id
+            JOIN users u ON c.user_id = u.id
+            LEFT JOIN routes r ON t.route_id = r.id
+            WHERE t.conductor_id = ? AND DATE(t.transaction_date) = DATE(?)
+            ORDER BY t.transaction_date DESC
+          `).all(effectiveConductorId, reportDate);
+          filename = `daily_report_${reportDate}.csv`;
+          break;
+
+        case 'weekly':
+          const start = startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          const end = endDate || new Date().toISOString().split('T')[0];
+          const weeklyEffectiveConductorId = conductorId || req.user.conductor_id;
+
+          data = this.db.prepare(`
+            SELECT
+              t.transaction_date,
+              p.full_name as passenger_name,
+              p.legacy_passenger_id,
+              u.full_name as conductor_name,
+              r.name as route_name,
+              t.transaction_type,
+              t.amount,
+              t.balance_before,
+              t.balance_after,
+              t.notes
+            FROM transactions t
+            JOIN passengers p ON t.passenger_id = p.id
+            JOIN conductors c ON t.conductor_id = c.id
+            JOIN users u ON c.user_id = u.id
+            LEFT JOIN routes r ON t.route_id = r.id
+            WHERE t.conductor_id = ? AND DATE(t.transaction_date) BETWEEN DATE(?) AND DATE(?)
+            ORDER BY t.transaction_date DESC
+          `).all(weeklyEffectiveConductorId, start, end);
+          filename = `weekly_report_${start}_to_${end}.csv`;
+          break;
+
+        case 'monthly':
+          const reportMonth = month || (new Date().getMonth() + 1);
+          const reportYear = year || new Date().getFullYear();
+          const monthlyEffectiveConductorId = conductorId || req.user.conductor_id;
+
+          data = this.db.prepare(`
+            SELECT
+              t.transaction_date,
+              p.full_name as passenger_name,
+              p.legacy_passenger_id,
+              u.full_name as conductor_name,
+              r.name as route_name,
+              t.transaction_type,
+              t.amount,
+              t.balance_before,
+              t.balance_after,
+              t.notes
+            FROM transactions t
+            JOIN passengers p ON t.passenger_id = p.id
+            JOIN conductors c ON t.conductor_id = c.id
+            JOIN users u ON c.user_id = u.id
+            LEFT JOIN routes r ON t.route_id = r.id
+            WHERE t.conductor_id = ? 
+            AND strftime('%m', t.transaction_date) = ? 
+            AND strftime('%Y', t.transaction_date) = ?
+            ORDER BY t.transaction_date DESC
+          `).all(
+            monthlyEffectiveConductorId,
+            reportMonth.toString().padStart(2, '0'),
+            reportYear.toString()
+          );
+          filename = `monthly_report_${reportMonth}_${reportYear}.csv`;
+          break;
+
+          break;
+
         case 'transactions':
+          const txnStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          const txnEnd = endDate || new Date().toISOString().split('T')[0];
           const conductorFilter = conductorId ? 'AND t.conductor_id = ?' : '';
-          const params = conductorId ? [start, end, conductorId] : [start, end];
+          const params = conductorId ? [txnStart, txnEnd, conductorId] : [txnStart, txnEnd];
 
           data = this.db.prepare(`
             SELECT
@@ -406,7 +597,7 @@ class ReportController {
             WHERE DATE(t.transaction_date) BETWEEN DATE(?) AND DATE(?) ${conductorFilter}
             ORDER BY t.transaction_date DESC
           `).all(...params);
-          filename = `transactions_${start}_to_${end}.csv`;
+          filename = `transactions_${txnStart}_to_${txnEnd}.csv`;
           break;
 
         case 'passengers':
@@ -428,8 +619,11 @@ class ReportController {
           break;
 
         case 'daily-summary':
+          const summaryStart = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          const summaryEnd = endDate || new Date().toISOString().split('T')[0];
           const conductorFilter2 = conductorId ? 'AND c.id = ?' : '';
-          const params2 = conductorId ? [start, end, conductorId] : [start, end];
+          const params2 = conductorId ? [summaryStart, summaryEnd, conductorId] : [summaryStart, summaryEnd];
+
           data = this.db.prepare(`
             SELECT
               DATE(t.transaction_date) as date,
@@ -447,7 +641,7 @@ class ReportController {
             GROUP BY DATE(t.transaction_date), c.id
             ORDER BY date DESC, conductor_name
           `).all(...params2);
-          filename = `daily_summary_${start}_to_${end}.csv`;
+          filename = `daily_summary_${summaryStart}_to_${summaryEnd}.csv`;
           break;
 
         default:

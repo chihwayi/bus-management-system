@@ -153,6 +153,17 @@ export interface ReportData {
     boarding_count: number;
     total_paid: number;
   }>;
+  allPassengers?: {
+    id: string;
+    full_name: string;
+    legacy_passenger_id: string;
+    ministry: string;
+    boarding_area: string;
+    transaction_count: number;
+    total_paid: number;
+    balance_at_month_end: number;
+  }[];
+  transactions?: Transaction[];
 }
 
 export interface DashboardStats {

@@ -72,16 +72,16 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
           break;
         case 'monthly':
           const date = new Date(selectedDate);
-          response = await apiService.getConductorMonthlyReport(
-            conductorId,
-            (date.getMonth() + 1).toString()
-          );
+          const month = (date.getMonth() + 1).toString();
+          const year = date.getFullYear().toString();
+          response = await apiService.getConductorMonthlyReport(conductorId, month);
           break;
       }
 
       if (response.success && response.data) {
         setReportData(response.data);
-        await loadRecentTransactions();
+        // Extract transactions from the response data
+        extractTransactions(response.data);
       } else {
         throw new Error(response.error || 'Failed to load report data');
       }
@@ -96,43 +96,24 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
     }
   };
 
-  const loadRecentTransactions = async () => {
-    try {
-      let params: any = { conductorId };
+  const extractTransactions = (data: ReportData) => {
+    let allTransactions: Transaction[] = [];
 
-      if (activeTab === 'daily') {
-        params.date = selectedDate;
-      } else if (activeTab === 'weekly') {
-        const date = new Date(selectedDate);
-        params.startDate = new Date(date.setDate(date.getDate() - 7)).toISOString().split('T')[0];
-        params.endDate = selectedDate;
-      } else { // monthly
-        const date = new Date(selectedDate);
-        params.month = (date.getMonth() + 1).toString();
-        params.year = date.getFullYear().toString();
-      }
-
-      // Use the correct endpoint based on report type
-      let response;
-      if (activeTab === 'daily') {
-        response = await apiService.getConductorDailyReport(conductorId, params.date);
-      } else if (activeTab === 'weekly') {
-        response = await apiService.getConductorWeeklyReport(conductorId, params.startDate);
-      } else { // monthly
-        response = await apiService.getConductorMonthlyReport(conductorId, params.month);
-      }
-
-      if (response.success && response.data) {
-        // Extract transactions from the response data
-        const transactions = response.data.passengerDetails?.flatMap(passenger =>
-          passenger.transactions || []
-        ) || [];
-        setTransactions(transactions);
-      }
-    } catch (err) {
-      console.error('Failed to load transactions:', err);
-      setTransactions([]);
+    // Extract transactions based on report type
+    if (activeTab === 'daily') {
+      // For daily reports, get transactions from passenger details
+      allTransactions = data.passengerDetails?.flatMap(passenger =>
+        passenger.transactions || []
+      ) || [];
+    } else if (activeTab === 'weekly') {
+      // For weekly reports, get transactions from transactions
+      allTransactions = data.transactions || [];
+    } else if (activeTab === 'monthly') {
+      // For monthly reports, get transactions from transactions
+      allTransactions = data.transactions || [];
     }
+
+    setTransactions(allTransactions);
   };
 
   const applyFilters = (query: string, transactionType: string) => {
@@ -147,6 +128,7 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
         const matchesNotes = transaction.notes?.toLowerCase().includes(lowerQuery);
         const matchesAmount = transaction.amount.toString().includes(lowerQuery);
         const matchesConductor = transaction.conductor_name?.toLowerCase().includes(lowerQuery);
+        // const matchesPassengerName = transaction.passenger_name?.toLowerCase().includes(lowerQuery);
 
         return matchesId || matchesPassengerId || matchesNotes || matchesAmount || matchesConductor;
       });
@@ -174,41 +156,52 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
 
   const handleExport = async () => {
     setIsExporting(true);
+    setError(null);
+
     try {
-      let params: any = { conductorId };
+      let filters: any = { conductorId };
 
       if (activeTab === 'daily') {
-        params.date = selectedDate;
+        filters.startDate = selectedDate;
       } else if (activeTab === 'weekly') {
         const date = new Date(selectedDate);
-        params.startDate = new Date(date.setDate(date.getDate() - 7)).toISOString().split('T')[0];
-        params.endDate = selectedDate;
-      } else { // monthly
+        const startDate = new Date(date.getTime() - 7 * 24 * 60 * 60 * 1000);
+        filters.startDate = startDate.toISOString().split('T')[0];
+        filters.endDate = selectedDate;
+      } else if (activeTab === 'monthly') {
         const date = new Date(selectedDate);
-        params.month = (date.getMonth() + 1).toString();
-        params.year = date.getFullYear().toString();
+        filters.month = (date.getMonth() + 1).toString();
+        filters.year = date.getFullYear().toString();
       }
 
-      const response = await apiService.exportReport(
-        activeTab,
-        'csv',
-        params
-      );
+      const response = await apiService.exportReport(activeTab, 'csv', filters);
 
-      if (response.success) {
-        // Create download link
-        const blob = new Blob([response.data], { type: 'text/csv' });
+      // Since the backend returns CSV content directly, we need to handle it properly
+      if (response) {
+        // If response is a string (CSV content), create blob directly
+        let csvContent = '';
+        if (typeof response === 'string') {
+          csvContent = response;
+        } else if (response.data) {
+          csvContent = response.data;
+        } else {
+          throw new Error('Invalid response format');
+        }
+
+        // Create and download the file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${activeTab}_report_${selectedDate}.csv`;
-        document.body.appendChild(a);
-        a.click();
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${activeTab}_report_${selectedDate}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
       }
     } catch (err) {
-      setError('Failed to export report');
+      console.error('Export error:', err);
+      setError('Failed to export report. Please try again.');
     } finally {
       setIsExporting(false);
     }
@@ -385,7 +378,7 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
           {reportData.hourlyBreakdown && (
             <div className="px-6 pb-6">
               <h4 className="text-lg font-medium text-gray-900 mb-4">Hourly Breakdown</h4>
-              <div className="bg-white shadow rounded-lg p-4">
+              <div className="bg-white shadow rounded-lg p-4 max-h-96 overflow-y-auto">
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
                   {reportData.hourlyBreakdown.map((hour) => (
                     <div key={hour.hour} className="text-center p-2 border rounded">
@@ -399,200 +392,339 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
             </div>
           )}
 
-          {/* Passenger Details */}
-          {reportData.passengerDetails && (
+          {/* Daily Breakdown for Weekly/Monthly Reports */}
+          {(activeTab === 'weekly' || activeTab === 'monthly') && reportData.dailyBreakdown && (
             <div className="px-6 pb-6">
-              <h4 className="text-lg font-medium text-gray-900 mb-4">Passenger Details</h4>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Passenger</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Boardings</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount Paid</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {reportData.passengerDetails.map((passenger) => (
-                      <tr key={passenger.legacy_passenger_id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{passenger.full_name}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">{passenger.legacy_passenger_id}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{passenger.boarding_count}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-green-600">{formatCurrency(passenger.total_paid)}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`text-sm font-medium ${passenger.current_balance >= 10 ? 'text-green-600' :
-                            passenger.current_balance >= 0 ? 'text-yellow-600' : 'text-red-600'
-                            }`}>
-                            {formatCurrency(passenger.current_balance)}
-                          </div>
-                        </td>
+              <h4 className="text-lg font-medium text-gray-900 mb-4">Daily Breakdown</h4>
+              <div className="bg-white shadow rounded-lg overflow-hidden">
+                <div className="max-h-96 overflow-y-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Boardings</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unique Passengers</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {reportData.dailyBreakdown.map((day) => (
+                        <tr key={day.date}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {formatDate(day.date, 'short')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {day.boardings}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {day.unique_passengers}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
+                            {formatCurrency(day.revenue)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Recent Transactions */}
-          <div className="border-t border-gray-200">
-            <div className="px-6 py-4">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-medium text-gray-900">Recent Transactions</h4>
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filters
-                  <ChevronDown className={`w-4 h-4 ml-2 transform transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-                </button>
-              </div>
-
-              {/* Search and Filters */}
-              {showFilters && (
-                <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Search transactions..."
-                        value={searchQuery}
-                        onChange={handleSearchChange}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    <select
-                      value={selectedTransactionType}
-                      onChange={(e) => handleTransactionTypeChange(e.target.value as any)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="all">All Types</option>
-                      <option value="boarding">Boarding</option>
-                      <option value="topup">Top-up</option>
-                      <option value="adjustment">Adjustment</option>
-                    </select>
-
-                    <button
-                      onClick={clearFilters}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                    >
-                      Clear Filters
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Transactions List */}
-              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Transaction
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Amount
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Balance
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredTransactions.length === 0 ? (
+          {/* Monthly Report - All Passengers */}
+          {activeTab === 'monthly' && reportData.allPassengers && (
+            <div className="px-6 pb-6">
+              <h4 className="text-lg font-medium text-gray-900 mb-4">All Passengers (Month-end Balances)</h4>
+              <div className="bg-white shadow rounded-lg overflow-hidden">
+                <div className="max-h-96 overflow-y-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0">
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                          <Eye className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                          <p>No transactions found</p>
-                          {(searchQuery || selectedTransactionType !== 'all') && (
-                            <p className="text-sm mt-2">Try adjusting your search criteria</p>
-                          )}
-                        </td>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Passenger</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ministry</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Boarding Area</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transactions</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Paid</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Month-end Balance</th>
                       </tr>
-                    ) : (
-                      filteredTransactions.map((transaction) => (
-                        <tr key={transaction.id} className="hover:bg-gray-50">
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {reportData.allPassengers.map((passenger) => (
+                        <tr key={passenger.legacy_passenger_id}>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">
-                                ID: {transaction.id}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                Passenger: {transaction.passenger_id}
-                              </div>
-                              {transaction.notes && (
-                                <div className="text-xs text-gray-400 mt-1">
-                                  {transaction.notes}
-                                </div>
-                              )}
-                            </div>
+                            <div className="text-sm font-medium text-gray-900">{passenger.full_name}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getTransactionTypeColor(transaction.transaction_type)}`}>
-                              {transaction.transaction_type}
-                            </span>
+                            <div className="text-sm text-gray-500">{passenger.legacy_passenger_id}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className={`text-sm font-medium ${transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {transaction.amount >= 0 ? '+' : ''}{formatCurrency(transaction.amount)}
-                            </div>
+                            <div className="text-sm text-gray-500">{passenger.ministry}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {formatCurrency(transaction.balance_before)} → {formatCurrency(transaction.balance_after)}
-                            </div>
+                            <div className="text-sm text-gray-500">{passenger.boarding_area}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {formatDate(transaction.transaction_date, 'datetime')}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {formatRelativeTime(transaction.transaction_date)}
-                            </div>
+                            <div className="text-sm text-gray-900">{passenger.transaction_count}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              {getSyncStatusIcon(transaction.sync_status)}
-                              <span className="ml-2 text-sm text-gray-600 capitalize">
-                                {transaction.sync_status}
-                              </span>
-                              {transaction.is_offline && (
-                                <span className="ml-2 text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded">
-                                  Offline
-                                </span>
-                              )}
+                            <div className="text-sm text-green-600">{formatCurrency(passenger.total_paid)}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className={`text-sm font-medium ${passenger.balance_at_month_end >= 10 ? 'text-green-600' :
+                              passenger.balance_at_month_end >= 0 ? 'text-yellow-600' : 'text-red-600'
+                              }`}>
+                              {formatCurrency(passenger.balance_at_month_end)}
                             </div>
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Top Passengers for Weekly Reports */}
+          {activeTab === 'weekly' && reportData.topPassengers && (
+            <div className="px-6 pb-6">
+              <h4 className="text-lg font-medium text-gray-900 mb-4">Top Passengers</h4>
+              <div className="bg-white shadow rounded-lg overflow-hidden">
+                <div className="max-h-96 overflow-y-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Passenger</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Boardings</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Paid</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {reportData.topPassengers.map((passenger) => (
+                        <tr key={passenger.legacy_passenger_id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{passenger.full_name}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-500">{passenger.legacy_passenger_id}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{passenger.boarding_count}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-green-600">{formatCurrency(passenger.total_paid)}</div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Passenger Details for Daily Reports */}
+          {activeTab === 'daily' && reportData.passengerDetails && (
+            <div className="px-6 pb-6">
+              <h4 className="text-lg font-medium text-gray-900 mb-4">Passenger Details</h4>
+              <div className="bg-white shadow rounded-lg overflow-hidden">
+                <div className="max-h-96 overflow-y-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Passenger</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Boardings</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount Paid</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {reportData.passengerDetails.map((passenger) => (
+                        <tr key={passenger.legacy_passenger_id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{passenger.full_name}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-500">{passenger.legacy_passenger_id}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{passenger.boarding_count}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-green-600">{formatCurrency(passenger.total_paid)}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className={`text-sm font-medium ${passenger.current_balance >= 10 ? 'text-green-600' :
+                              passenger.current_balance >= 0 ? 'text-yellow-600' : 'text-red-600'
+                              }`}>
+                              {formatCurrency(passenger.current_balance)}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Recent Transactions - Only show for Daily Reports */}
+          {activeTab === 'daily' && (
+            <div className="border-t border-gray-200">
+              <div className="px-6 py-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-medium text-gray-900">Recent Transactions</h4>
+                  <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    <Filter className="w-4 h-4 mr-2" />
+                    Filters
+                    <ChevronDown className={`w-4 h-4 ml-2 transform transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+
+                {/* Search and Filters */}
+                {showFilters && (
+                  <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search transactions..."
+                          value={searchQuery}
+                          onChange={handleSearchChange}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+
+                      <select
+                        value={selectedTransactionType}
+                        onChange={(e) => handleTransactionTypeChange(e.target.value as any)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="all">All Types</option>
+                        <option value="boarding">Boarding</option>
+                        <option value="topup">Top-up</option>
+                        <option value="adjustment">Adjustment</option>
+                      </select>
+
+                      <button
+                        onClick={clearFilters}
+                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                      >
+                        Clear Filters
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Transactions List */}
+                <div className="bg-white shadow rounded-lg overflow-hidden">
+                  <div className="max-h-96 overflow-y-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Transaction
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Type
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Amount
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Balance
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Date
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredTransactions.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                              <Eye className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                              <p>No transactions found</p>
+                              {(searchQuery || selectedTransactionType !== 'all') && (
+                                <p className="text-sm mt-2">Try adjusting your search criteria</p>
+                              )}
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredTransactions.map((transaction) => (
+                            <tr key={transaction.id} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">
+                                    ID: {transaction.id}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    Passenger: {transaction.passenger_id}
+                                  </div>
+                                  {transaction.notes && (
+                                    <div className="text-xs text-gray-400 mt-1">
+                                      {transaction.notes}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getTransactionTypeColor(transaction.transaction_type)}`}>
+                                  {transaction.transaction_type}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className={`text-sm font-medium ${transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {transaction.amount >= 0 ? '+' : ''}{formatCurrency(transaction.amount)}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {formatCurrency(transaction.balance_before)} → {formatCurrency(transaction.balance_after)}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {formatDate(transaction.transaction_date, 'datetime')}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {formatRelativeTime(transaction.transaction_date)}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  {getSyncStatusIcon(transaction.sync_status)}
+                                  <span className="ml-2 text-sm text-gray-600 capitalize">
+                                    {transaction.sync_status}
+                                  </span>
+                                  {transaction.is_offline && (
+                                    <span className="ml-2 text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded">
+                                      Offline
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
