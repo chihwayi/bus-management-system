@@ -35,10 +35,10 @@ const Notification: React.FC<NotificationProps> = ({
   };
 
   return (
-    <div className={`fixed top-4 right-4 z-50 p-3 rounded-lg shadow-lg ${typeStyles[type]} flex items-center gap-2 animate-in slide-in-from-right duration-300 min-w-[300px]`}>
+    <div className={`fixed top-4 left-4 right-4 sm:right-4 sm:left-auto sm:min-w-[300px] z-50 p-3 rounded-lg shadow-lg ${typeStyles[type]} flex items-center gap-2 animate-in slide-in-from-top sm:slide-in-from-right duration-300`}>
       <Bell className="h-4 w-4 flex-shrink-0" />
-      <span className="text-sm font-medium flex-1">{message}</span>
-      <button onClick={onClose} className="p-1 hover:bg-white hover:bg-opacity-20 rounded">
+      <span className="text-sm font-medium flex-1 break-words">{message}</span>
+      <button onClick={onClose} className="p-1 hover:bg-white hover:bg-opacity-20 rounded flex-shrink-0">
         <X className="h-3 w-3" />
       </button>
     </div>
@@ -85,8 +85,8 @@ const PassengerTopUpSearch: React.FC<{
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search passenger by name, ID, or ministry..."
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="Search by name, ID, or ministry..."
+          className="w-full pl-10 pr-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
 
@@ -99,18 +99,23 @@ const PassengerTopUpSearch: React.FC<{
               <button
                 key={passenger.id}
                 onClick={() => handleSelectPassenger(passenger)}
-                className="w-full p-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-center justify-between"
+                className="w-full p-3 sm:p-4 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
               >
-                <div className="flex-1">
-                  <div className="font-medium text-gray-900">
-                    {passenger.full_name}
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-gray-900 truncate">
+                      {passenger.full_name}
+                    </div>
+                    <div className="text-sm text-gray-500 truncate">
+                      ID: #{passenger.legacy_passenger_id}
+                    </div>
+                    <div className="text-xs text-gray-400 truncate">
+                      {passenger.ministry}
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-500">
-                    ID: #{passenger.legacy_passenger_id} • {passenger.ministry}
+                  <div className={`text-sm font-medium ml-2 ${balanceConfig.textColor}`}>
+                    {formatCurrency(passenger.current_balance)}
                   </div>
-                </div>
-                <div className={`text-sm font-medium ${balanceConfig.textColor}`}>
-                  {formatCurrency(passenger.current_balance)}
                 </div>
               </button>
             );
@@ -130,18 +135,18 @@ const SelectedPassengerCard: React.FC<{
 
   return (
     <div className={`p-4 rounded-lg border-2 ${balanceConfig.borderColor} ${balanceConfig.bgColor}`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="bg-white p-2 rounded-full">
+      <div className="flex items-start justify-between">
+        <div className="flex items-start space-x-3 flex-1 min-w-0">
+          <div className="bg-white p-2 rounded-full flex-shrink-0">
             <User className="h-6 w-6 text-gray-600" />
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">{passenger.full_name}</h3>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-gray-900 truncate">{passenger.full_name}</h3>
             <p className="text-sm text-gray-600">ID: #{passenger.legacy_passenger_id}</p>
-            <p className="text-xs text-gray-500">{passenger.ministry}</p>
+            <p className="text-xs text-gray-500 truncate">{passenger.ministry}</p>
           </div>
         </div>
-        <div className="text-right">
+        <div className="text-right flex-shrink-0 ml-3">
           <div className="flex items-center gap-1 mb-1">
             <DollarSign className="h-4 w-4" />
             <span className={`font-bold ${balanceConfig.textColor}`}>
@@ -150,7 +155,7 @@ const SelectedPassengerCard: React.FC<{
           </div>
           <button
             onClick={onDeselect}
-            className="text-xs text-gray-500 hover:text-gray-700"
+            className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-white hover:bg-opacity-50"
           >
             Change
           </button>
@@ -269,7 +274,7 @@ const TopUpComponent: React.FC<TopUpComponentProps> = ({
         />
       )}
 
-      <div className={`bg-white rounded-lg shadow-sm border ${className}`}>
+      <div className={`bg-white rounded-lg shadow-sm border relative ${className}`}>
         <div className="p-4 border-b">
           <div className="flex items-center space-x-2">
             <CreditCard className="h-5 w-5 text-green-600" />
@@ -280,11 +285,11 @@ const TopUpComponent: React.FC<TopUpComponentProps> = ({
           </p>
         </div>
 
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-6">
           {/* Passenger Selection */}
           {!selectedPassenger ? (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
                 Select Passenger
               </label>
               <PassengerTopUpSearch
@@ -296,7 +301,7 @@ const TopUpComponent: React.FC<TopUpComponentProps> = ({
             </div>
           ) : (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
                 Selected Passenger
               </label>
               <SelectedPassengerCard
@@ -308,26 +313,26 @@ const TopUpComponent: React.FC<TopUpComponentProps> = ({
 
           {/* Top-up Options */}
           {selectedPassenger && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {/* Quick Amounts */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Quick Top-up Amounts
                 </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {quickAmounts.map((amount) => (
                     <button
                       key={amount}
                       onClick={() => handleTopUp(amount)}
                       disabled={isLoading}
-                      className="p-3 border border-gray-200 rounded-lg hover:bg-green-50 hover:border-green-300 transition-all duration-200 flex items-center justify-center gap-2 font-medium text-gray-700 hover:text-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-green-50 hover:border-green-300 active:bg-green-100 transition-all duration-200 flex items-center justify-center gap-2 font-medium text-gray-700 hover:text-green-700 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                     >
                       {isLoading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <Plus className="h-4 w-4" />
                       )}
-                      {formatCurrency(amount)}
+                      <span className="text-sm sm:text-base">{formatCurrency(amount)}</span>
                     </button>
                   ))}
                 </div>
@@ -335,10 +340,10 @@ const TopUpComponent: React.FC<TopUpComponentProps> = ({
 
               {/* Custom Amount */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Custom Amount
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <div className="flex-1 relative">
                     <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
@@ -348,13 +353,13 @@ const TopUpComponent: React.FC<TopUpComponentProps> = ({
                       placeholder="Enter amount..."
                       min="0"
                       step="0.01"
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full pl-10 pr-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                   <button
                     onClick={handleCustomTopUp}
                     disabled={isLoading || !customAmount}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+                    className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium transition-colors touch-manipulation"
                   >
                     {isLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -367,21 +372,21 @@ const TopUpComponent: React.FC<TopUpComponentProps> = ({
               </div>
 
               {/* Balance Preview */}
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <div className="flex items-center justify-between text-sm">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="flex items-center justify-between text-sm mb-2">
                   <span className="text-gray-600">Current Balance:</span>
                   <span className="font-medium">{formatCurrency(selectedPassenger.current_balance)}</span>
                 </div>
                 {customAmount && !isNaN(parseFloat(customAmount)) && parseFloat(customAmount) > 0 && (
                   <>
-                    <div className="flex items-center justify-between text-sm mt-1">
+                    <div className="flex items-center justify-between text-sm mb-2">
                       <span className="text-gray-600">Top-up Amount:</span>
                       <span className="font-medium text-green-600">+{formatCurrency(parseFloat(customAmount))}</span>
                     </div>
-                    <div className="border-t border-gray-200 mt-2 pt-2">
-                      <div className="flex items-center justify-between text-sm font-bold">
+                    <div className="border-t border-gray-200 pt-2">
+                      <div className="flex items-center justify-between font-bold">
                         <span className="text-gray-900">New Balance:</span>
-                        <span className="text-green-600">
+                        <span className="text-green-600 text-lg">
                           {formatCurrency(selectedPassenger.current_balance + parseFloat(customAmount))}
                         </span>
                       </div>
@@ -391,10 +396,10 @@ const TopUpComponent: React.FC<TopUpComponentProps> = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-2 pt-2">
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <button
                   onClick={() => setSelectedPassenger(null)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+                  className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 active:bg-gray-100 font-medium transition-colors touch-manipulation"
                 >
                   Select Different Passenger
                 </button>
@@ -403,7 +408,7 @@ const TopUpComponent: React.FC<TopUpComponentProps> = ({
                     setCustomAmount('');
                     setNotification(null);
                   }}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+                  className="flex-1 sm:flex-initial px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 active:bg-gray-100 font-medium transition-colors touch-manipulation"
                 >
                   Clear
                 </button>
@@ -413,25 +418,25 @@ const TopUpComponent: React.FC<TopUpComponentProps> = ({
 
           {/* Empty State */}
           {passengers.length === 0 && (
-            <div className="text-center py-8">
-              <User className="mx-auto h-12 w-12 text-gray-400 mb-3" />
-              <h3 className="text-sm font-medium text-gray-900 mb-1">No Passengers Available</h3>
-              <p className="text-sm text-gray-500">
+            <div className="text-center py-12">
+              <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-base font-medium text-gray-900 mb-2">No Passengers Available</h3>
+              <p className="text-sm text-gray-500 px-4">
                 No passengers found in your current route.
               </p>
             </div>
           )}
-
-          {/* Loading State */}
-          {isLoading && (
-            <div className="absolute inset-0 bg-white bg-opacity-80 rounded-lg flex items-center justify-center">
-              <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-green-500" />
-                <span className="text-sm font-medium text-gray-600">Processing top-up...</span>
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* Loading Overlay */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-white bg-opacity-90 rounded-lg flex items-center justify-center z-10">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-green-500" />
+              <span className="text-sm font-medium text-gray-600">Processing top-up...</span>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

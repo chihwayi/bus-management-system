@@ -50,12 +50,17 @@ export const useAppContext = () => {
 // Main Layout Component that wraps Header and Navigation
 const MainLayout: React.FC = () => {
   const { isOffline, user, lastSync, pendingTransactions } = useAppContext();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Offline indicator */}
       {isOffline && (
-        <div className="bg-red-600 text-white text-center py-2 text-sm font-medium z-50">
+        <div className="bg-red-600 text-white text-center py-2 text-sm font-medium z-40">
           🔴 You are currently offline. Changes will be synced when connection is restored.
         </div>
       )}
@@ -66,19 +71,29 @@ const MainLayout: React.FC = () => {
         isOnline={!isOffline}
         lastSync={lastSync}
         pendingTransactions={pendingTransactions}
+        onMobileMenuToggle={toggleMobileMenu}
+        isMobileMenuOpen={isMobileMenuOpen}
       />
 
       <div className="flex flex-1">
-        {/* Navigation sidebar */}
-        <div className="w-64 bg-gray-50 border-r border-gray-200 fixed left-0 top-16 bottom-0 overflow-y-auto">
+        {/* Navigation sidebar - hidden on mobile */}
+        <div className="hidden md:block w-64 bg-gray-50 border-r border-gray-200 fixed left-0 top-16 bottom-0 overflow-y-auto">
           <Navigation
             user={user as User}
             pendingTransactions={pendingTransactions}
           />
         </div>
 
+        {/* Mobile navigation */}
+        <Navigation
+          user={user as User}
+          pendingTransactions={pendingTransactions}
+          isMobileMenuOpen={isMobileMenuOpen}
+          onMobileMenuClose={() => setIsMobileMenuOpen(false)}
+        />
+
         {/* Main content area */}
-        <main className="flex-1 ml-64 p-6 overflow-auto">
+        <main className={`flex-1 ${user ? 'md:ml-64' : ''} p-4 md:p-6 overflow-auto transition-all duration-300`}>
           <div className="max-w-7xl mx-auto">
             <Outlet />
           </div>

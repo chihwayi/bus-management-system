@@ -207,7 +207,7 @@ const PassengerRegistration: React.FC<PassengerRegistrationProps> = ({
 
   if (showSuccess) {
     return (
-      <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 ${className}`}>
+      <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 ${className}`}>
         <div className="text-center">
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
             <CheckCircle className="h-6 w-6 text-green-600" />
@@ -220,7 +220,7 @@ const PassengerRegistration: React.FC<PassengerRegistrationProps> = ({
           </p>
           <button
             onClick={() => setShowSuccess(false)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+            className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
           >
             Register Another
           </button>
@@ -231,10 +231,10 @@ const PassengerRegistration: React.FC<PassengerRegistrationProps> = ({
 
   if (loadingRoute) {
     return (
-      <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 ${className}`}>
+      <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 ${className}`}>
         <div className="flex justify-center items-center py-8">
           <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />
-          <span className="ml-2">Loading route information...</span>
+          <span className="ml-2 text-sm sm:text-base">Loading route information...</span>
         </div>
         <div className="text-center text-sm text-gray-500 mt-2">
           Please wait while we load the conductor's route details
@@ -245,14 +245,14 @@ const PassengerRegistration: React.FC<PassengerRegistrationProps> = ({
 
   if (routeError) {
     return (
-      <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 ${className}`}>
+      <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 ${className}`}>
         <div className="text-center text-red-500 py-8">
           <AlertCircle className="h-6 w-6 mx-auto mb-2" />
-          <p className="font-medium">Failed to load route information</p>
+          <p className="font-medium text-sm sm:text-base">Failed to load route information</p>
           <p className="text-sm mt-2">{routeError}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-blue-100 text-blue-600 rounded-md hover:bg-blue-200"
+            className="mt-4 px-4 py-2 bg-blue-100 text-blue-600 rounded-md hover:bg-blue-200 text-sm"
           >
             Try Again
           </button>
@@ -263,10 +263,10 @@ const PassengerRegistration: React.FC<PassengerRegistrationProps> = ({
 
   if (!conductorRoute) {
     return (
-      <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 ${className}`}>
+      <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 ${className}`}>
         <div className="text-center text-red-500 py-8">
           <AlertCircle className="h-6 w-6 mx-auto mb-2" />
-          <p>This conductor is not assigned to any route.</p>
+          <p className="text-sm sm:text-base">This conductor is not assigned to any route.</p>
           <p className="text-sm mt-2">Please assign a route to this conductor before registering passengers.</p>
         </div>
       </div>
@@ -276,20 +276,20 @@ const PassengerRegistration: React.FC<PassengerRegistrationProps> = ({
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200">
+      <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 mr-3">
               <Plus className="h-4 w-4 text-blue-600" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900">
+            <h3 className="text-base sm:text-lg font-medium text-gray-900">
               Register New Passenger
             </h3>
           </div>
           {onCancel && (
             <button
               onClick={onCancel}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 p-1"
             >
               <X className="h-5 w-5" />
             </button>
@@ -298,28 +298,28 @@ const PassengerRegistration: React.FC<PassengerRegistrationProps> = ({
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* General error */}
         {errors.general && (
           <div className="bg-red-50 border border-red-200 rounded-md p-3">
             <div className="flex">
-              <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
+              <AlertCircle className="h-5 w-5 text-red-400 mr-2 flex-shrink-0" />
               <span className="text-sm text-red-800">{errors.general}</span>
             </div>
           </div>
         )}
 
         {/* Route Information (readonly) */}
-        <div className="bg-gray-50 p-4 rounded-md">
+        <div className="bg-gray-50 p-3 sm:p-4 rounded-md">
           <h4 className="text-sm font-medium text-gray-700 mb-2">Route Information</h4>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <p className="text-xs text-gray-500">Route Name</p>
-              <p className="text-sm font-medium">{conductorRoute.name}</p>
+              <p className="text-sm font-medium break-words">{conductorRoute.name}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Boarding Area</p>
-              <p className="text-sm font-medium">{conductorRoute.boarding_area}</p>
+              <p className="text-sm font-medium break-words">{conductorRoute.boarding_area}</p>
             </div>
           </div>
         </div>
@@ -338,7 +338,7 @@ const PassengerRegistration: React.FC<PassengerRegistrationProps> = ({
               id="full_name"
               value={formData.full_name}
               onChange={(e) => handleInputChange('full_name', e.target.value)}
-              className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.full_name ? 'border-red-300' : 'border-gray-300'
+              className={`block w-full pl-10 pr-3 py-2 sm:py-3 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.full_name ? 'border-red-300' : 'border-gray-300'
                 }`}
               placeholder="Enter passenger's full name"
             />
@@ -361,7 +361,7 @@ const PassengerRegistration: React.FC<PassengerRegistrationProps> = ({
               id="ministry"
               value={formData.ministry}
               onChange={(e) => handleInputChange('ministry', e.target.value)}
-              className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.ministry ? 'border-red-300' : 'border-gray-300'
+              className={`block w-full pl-10 pr-3 py-2 sm:py-3 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.ministry ? 'border-red-300' : 'border-gray-300'
                 }`}
             >
               <option value="">Select Ministry</option>
@@ -391,7 +391,7 @@ const PassengerRegistration: React.FC<PassengerRegistrationProps> = ({
               id="initial_balance"
               value={formData.initial_balance}
               onChange={(e) => handleInputChange('initial_balance', parseFloat(e.target.value) || 0)}
-              className={`block w-full pl-10 pr-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.initial_balance ? 'border-red-300' : 'border-gray-300'
+              className={`block w-full pl-10 pr-3 py-2 sm:py-3 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.initial_balance ? 'border-red-300' : 'border-gray-300'
                 }`}
               placeholder="0.00"
               min="0"
@@ -416,7 +416,7 @@ const PassengerRegistration: React.FC<PassengerRegistrationProps> = ({
             id="legacy_passenger_id"
             value={formData.legacy_passenger_id || ''}
             onChange={(e) => handleInputChange('legacy_passenger_id', e.target.value ? parseInt(e.target.value) : undefined)}
-            className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.legacy_passenger_id ? 'border-red-300' : 'border-gray-300'
+            className={`block w-full px-3 py-2 sm:py-3 text-sm border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.legacy_passenger_id ? 'border-red-300' : 'border-gray-300'
               }`}
             placeholder="Enter existing passenger ID (optional)"
           />
@@ -429,19 +429,19 @@ const PassengerRegistration: React.FC<PassengerRegistrationProps> = ({
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-4 border-t border-gray-200">
           <button
             type="button"
             onClick={handleReset}
             disabled={submitting}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto px-4 py-2 sm:py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Reset
           </button>
           <button
             type="submit"
             disabled={submitting || isLoading}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            className="w-full sm:w-auto px-4 py-2 sm:py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
             {(submitting || isLoading) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {(submitting || isLoading) ? 'Registering...' : 'Register Passenger'}

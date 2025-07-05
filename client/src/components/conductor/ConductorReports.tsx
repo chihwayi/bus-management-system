@@ -14,7 +14,10 @@ import {
   Filter,
   ChevronDown,
   Eye,
-  Clock
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  MoreVertical
 } from 'lucide-react';
 import {
   formatCurrency,
@@ -47,6 +50,7 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTransactionType, setSelectedTransactionType] = useState<'all' | 'boarding' | 'topup' | 'adjustment'>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Debounced search function
   const debouncedSearch = debounce((query: string) => {
@@ -244,16 +248,16 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
+      <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
           <h3 className="text-lg font-medium text-gray-900">
             Conductor Reports
           </h3>
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
             <button
               onClick={handleRefresh}
               disabled={isLoading}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+              className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
@@ -261,7 +265,7 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
             <button
               onClick={handleExport}
               disabled={isExporting || !reportData}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+              className="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
             >
               <Download className={`w-4 h-4 mr-2 ${isExporting ? 'animate-spin' : ''}`} />
               Export
@@ -272,7 +276,7 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
 
       {/* Error Message */}
       {error && (
-        <div className="px-6 py-4 bg-red-50 border-b border-red-200">
+        <div className="px-4 sm:px-6 py-4 bg-red-50 border-b border-red-200">
           <div className="flex items-center">
             <AlertCircle className="w-5 h-5 text-red-600 mr-2" />
             <p className="text-sm text-red-700">{error}</p>
@@ -280,16 +284,16 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
         </div>
       )}
 
-      {/* Tabs */}
+      {/* Tabs - Mobile Scrollable */}
       <div className="border-b border-gray-200">
-        <nav className="flex space-x-8 px-6">
+        <nav className="flex space-x-4 px-4 sm:px-6 overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as any)}
-                className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab.key
+                className={`flex items-center py-4 px-3 sm:px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.key
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
@@ -303,8 +307,8 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
       </div>
 
       {/* Date Picker */}
-      <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-        <div className="flex items-center justify-between">
+      <div className="px-4 sm:px-6 py-4 bg-gray-50 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
           <div className="flex items-center space-x-4">
             <Calendar className="w-5 h-5 text-gray-400" />
             <input
@@ -315,7 +319,8 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
             />
           </div>
           <div className="text-sm text-gray-600">
-            Showing {activeTab} report for {formatDate(selectedDate, 'long')}
+            <span className="hidden sm:inline">Showing {activeTab} report for </span>
+            <span className="font-medium">{formatDate(selectedDate, 'short')}</span>
           </div>
         </div>
       </div>
@@ -331,60 +336,60 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
       {/* Report Content */}
       {!isLoading && reportData && (
         <>
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-6">
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
+          {/* Stats Cards - Mobile Stack */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 p-4 sm:p-6">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-4 sm:p-6 text-white">
               <div className="flex items-center">
-                <Users className="w-8 h-8" />
-                <div className="ml-4">
-                  <p className="text-blue-100 text-sm">Total Passengers</p>
-                  <p className="text-2xl font-bold">{reportData.summary.unique_passengers}</p>
+                <Users className="w-6 h-6 sm:w-8 sm:h-8" />
+                <div className="ml-3 sm:ml-4">
+                  <p className="text-blue-100 text-xs sm:text-sm">Total Passengers</p>
+                  <p className="text-xl sm:text-2xl font-bold">{reportData.summary.unique_passengers}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
+            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-4 sm:p-6 text-white">
               <div className="flex items-center">
-                <Activity className="w-8 h-8" />
-                <div className="ml-4">
-                  <p className="text-green-100 text-sm">Total Boardings</p>
-                  <p className="text-2xl font-bold">{reportData.summary.total_boardings}</p>
+                <Activity className="w-6 h-6 sm:w-8 sm:h-8" />
+                <div className="ml-3 sm:ml-4">
+                  <p className="text-green-100 text-xs sm:text-sm">Total Boardings</p>
+                  <p className="text-xl sm:text-2xl font-bold">{reportData.summary.total_boardings}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-6 text-white">
+            <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-4 sm:p-6 text-white">
               <div className="flex items-center">
-                <DollarSign className="w-8 h-8" />
-                <div className="ml-4">
-                  <p className="text-purple-100 text-sm">Total Revenue</p>
-                  <p className="text-2xl font-bold">{formatCurrency(reportData.summary.total_revenue)}</p>
+                <DollarSign className="w-6 h-6 sm:w-8 sm:h-8" />
+                <div className="ml-3 sm:ml-4">
+                  <p className="text-purple-100 text-xs sm:text-sm">Total Revenue</p>
+                  <p className="text-xl sm:text-2xl font-bold">{formatCurrency(reportData.summary.total_revenue)}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-6 text-white">
+            <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-4 sm:p-6 text-white">
               <div className="flex items-center">
-                <TrendingUp className="w-8 h-8" />
-                <div className="ml-4">
-                  <p className="text-orange-100 text-sm">Total Top-ups</p>
-                  <p className="text-2xl font-bold">{formatCurrency(reportData.summary.total_topups || 0)}</p>
+                <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8" />
+                <div className="ml-3 sm:ml-4">
+                  <p className="text-orange-100 text-xs sm:text-sm">Total Top-ups</p>
+                  <p className="text-xl sm:text-2xl font-bold">{formatCurrency(reportData.summary.total_topups || 0)}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Additional Report Sections */}
+          {/* Hourly Breakdown - Mobile Optimized */}
           {reportData.hourlyBreakdown && (
-            <div className="px-6 pb-6">
+            <div className="px-4 sm:px-6 pb-6">
               <h4 className="text-lg font-medium text-gray-900 mb-4">Hourly Breakdown</h4>
               <div className="bg-white shadow rounded-lg p-4 max-h-96 overflow-y-auto">
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4">
                   {reportData.hourlyBreakdown.map((hour) => (
-                    <div key={hour.hour} className="text-center p-2 border rounded">
-                      <div className="font-medium">{hour.hour}:00</div>
-                      <div className="text-sm text-gray-600">{hour.boardings} boardings</div>
-                      <div className="text-sm text-green-600">{formatCurrency(hour.revenue)}</div>
+                    <div key={hour.hour} className="text-center p-3 border rounded-lg">
+                      <div className="font-medium text-sm sm:text-base">{hour.hour}:00</div>
+                      <div className="text-xs sm:text-sm text-gray-600">{hour.boardings} boardings</div>
+                      <div className="text-xs sm:text-sm text-green-600 font-medium">{formatCurrency(hour.revenue)}</div>
                     </div>
                   ))}
                 </div>
@@ -392,12 +397,13 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
             </div>
           )}
 
-          {/* Daily Breakdown for Weekly/Monthly Reports */}
+          {/* Daily Breakdown - Mobile Cards */}
           {(activeTab === 'weekly' || activeTab === 'monthly') && reportData.dailyBreakdown && (
-            <div className="px-6 pb-6">
+            <div className="px-4 sm:px-6 pb-6">
               <h4 className="text-lg font-medium text-gray-900 mb-4">Daily Breakdown</h4>
               <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="max-h-96 overflow-y-auto">
+                {/* Desktop Table */}
+                <div className="hidden md:block max-h-96 overflow-y-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50 sticky top-0">
                       <tr>
@@ -427,16 +433,45 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile Cards */}
+                <div className="md:hidden max-h-96 overflow-y-auto">
+                  <div className="divide-y divide-gray-200">
+                    {reportData.dailyBreakdown.map((day) => (
+                      <div key={day.date} className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="font-medium text-gray-900">
+                            {formatDate(day.date, 'short')}
+                          </div>
+                          <div className="text-green-600 font-medium">
+                            {formatCurrency(day.revenue)}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-500">Boardings:</span>
+                            <span className="ml-2 font-medium">{day.boardings}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Passengers:</span>
+                            <span className="ml-2 font-medium">{day.unique_passengers}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Monthly Report - All Passengers */}
+          {/* Monthly Report - All Passengers - Mobile Cards */}
           {activeTab === 'monthly' && reportData.allPassengers && (
-            <div className="px-6 pb-6">
+            <div className="px-4 sm:px-6 pb-6">
               <h4 className="text-lg font-medium text-gray-900 mb-4">All Passengers (Month-end Balances)</h4>
               <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="max-h-96 overflow-y-auto">
+                {/* Desktop Table */}
+                <div className="hidden lg:block max-h-96 overflow-y-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50 sticky top-0">
                       <tr>
@@ -482,16 +517,56 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile Cards */}
+                <div className="lg:hidden max-h-96 overflow-y-auto">
+                  <div className="divide-y divide-gray-200">
+                    {reportData.allPassengers.map((passenger) => (
+                      <div key={passenger.legacy_passenger_id} className="p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <div className="font-medium text-gray-900">{passenger.full_name}</div>
+                            <div className="text-sm text-gray-500">ID: {passenger.legacy_passenger_id}</div>
+                          </div>
+                          <div className={`text-right font-medium ${passenger.balance_at_month_end >= 10 ? 'text-green-600' :
+                            passenger.balance_at_month_end >= 0 ? 'text-yellow-600' : 'text-red-600'
+                            }`}>
+                            {formatCurrency(passenger.balance_at_month_end)}
+                          </div>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Ministry:</span>
+                            <span className="font-medium">{passenger.ministry}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Boarding Area:</span>
+                            <span className="font-medium">{passenger.boarding_area}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Transactions:</span>
+                            <span className="font-medium">{passenger.transaction_count}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Total Paid:</span>
+                            <span className="font-medium text-green-600">{formatCurrency(passenger.total_paid)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Top Passengers for Weekly Reports */}
+          {/* Top Passengers for Weekly Reports - Mobile Cards */}
           {activeTab === 'weekly' && reportData.topPassengers && (
-            <div className="px-6 pb-6">
+            <div className="px-4 sm:px-6 pb-6">
               <h4 className="text-lg font-medium text-gray-900 mb-4">Top Passengers</h4>
               <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="max-h-96 overflow-y-auto">
+                {/* Desktop Table */}
+                <div className="hidden md:block max-h-96 overflow-y-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50 sticky top-0">
                       <tr>
@@ -521,16 +596,39 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile Cards */}
+                <div className="md:hidden max-h-96 overflow-y-auto">
+                  <div className="divide-y divide-gray-200">
+                    {reportData.topPassengers.map((passenger) => (
+                      <div key={passenger.legacy_passenger_id} className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="font-medium text-gray-900">{passenger.full_name}</div>
+                            <div className="text-sm text-gray-500">ID: {passenger.legacy_passenger_id}</div>
+                          </div>
+                          <div className="text-green-600 font-medium">
+                            {formatCurrency(passenger.total_paid)}
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          <span className="font-medium text-gray-900">{passenger.boarding_count}</span> boardings
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Passenger Details for Daily Reports */}
+          {/* Passenger Details for Daily Reports - Mobile Cards */}
           {activeTab === 'daily' && reportData.passengerDetails && (
-            <div className="px-6 pb-6">
+            <div className="px-4 sm:px-6 pb-6">
               <h4 className="text-lg font-medium text-gray-900 mb-4">Passenger Details</h4>
               <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="max-h-96 overflow-y-auto">
+                {/* Desktop Table */}
+                <div className="hidden md:block max-h-96 overflow-y-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50 sticky top-0">
                       <tr>
@@ -568,6 +666,37 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
                     </tbody>
                   </table>
                 </div>
+
+                {/* Mobile Cards */}
+                <div className="md:hidden max-h-96 overflow-y-auto">
+                  <div className="divide-y divide-gray-200">
+                    {reportData.passengerDetails.map((passenger) => (
+                      <div key={passenger.legacy_passenger_id} className="p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <div className="font-medium text-gray-900">{passenger.full_name}</div>
+                            <div className="text-sm text-gray-500">ID: {passenger.legacy_passenger_id}</div>
+                          </div>
+                          <div className={`text-right font-medium ${passenger.current_balance >= 10 ? 'text-green-600' :
+                            passenger.current_balance >= 0 ? 'text-yellow-600' : 'text-red-600'
+                            }`}>
+                            {formatCurrency(passenger.current_balance)}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-500">Boardings:</span>
+                            <span className="ml-2 font-medium">{passenger.boarding_count}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Amount Paid:</span>
+                            <span className="ml-2 font-medium text-green-600">{formatCurrency(passenger.total_paid)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -575,12 +704,12 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
           {/* Recent Transactions - Only show for Daily Reports */}
           {activeTab === 'daily' && (
             <div className="border-t border-gray-200">
-              <div className="px-6 py-4">
-                <div className="flex items-center justify-between mb-4">
+              <div className="px-4 sm:px-6 py-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 space-y-3 sm:space-y-0">
                   <h4 className="text-lg font-medium text-gray-900">Recent Transactions</h4>
                   <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                    className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                   >
                     <Filter className="w-4 h-4 mr-2" />
                     Filters
@@ -591,7 +720,7 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
                 {/* Search and Filters */}
                 {showFilters && (
                   <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-3 sm:grid sm:grid-cols-1 md:grid-cols-3 sm:gap-4 sm:space-y-0">
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
@@ -616,7 +745,7 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
 
                       <button
                         onClick={clearFilters}
-                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                        className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                       >
                         Clear Filters
                       </button>
@@ -626,7 +755,8 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
 
                 {/* Transactions List */}
                 <div className="bg-white shadow rounded-lg overflow-hidden">
-                  <div className="max-h-96 overflow-y-auto">
+                  {/* Desktop Table */}
+                  <div className="hidden md:block max-h-96 overflow-y-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50 sticky top-0">
                         <tr>
@@ -720,6 +850,78 @@ const ConductorReports: React.FC<ConductorReportsProps> = ({
                         )}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Mobile Cards */}
+                  <div className="md:hidden max-h-96 overflow-y-auto">
+                    {filteredTransactions.length === 0 ? (
+                      <div className="px-6 py-12 text-center text-gray-500">
+                        <Eye className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                        <p>No transactions found</p>
+                        {(searchQuery || selectedTransactionType !== 'all') && (
+                          <p className="text-sm mt-2">Try adjusting your search criteria</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-200">
+                        {filteredTransactions.map((transaction) => (
+                          <div key={transaction.id} className="p-4">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    ID: {transaction.id}
+                                  </div>
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium capitalize ${getTransactionTypeColor(transaction.transaction_type)}`}>
+                                    {transaction.transaction_type}
+                                  </span>
+                                </div>
+                                <div className="text-sm text-gray-500 mb-1">
+                                  Passenger: {transaction.passenger_id}
+                                </div>
+                                {transaction.notes && (
+                                  <div className="text-xs text-gray-400 mb-2">
+                                    {transaction.notes}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                              <div>
+                                <span className="text-gray-500">Amount:</span>
+                                <div className={`font-medium ${transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {transaction.amount >= 0 ? '+' : ''}{formatCurrency(transaction.amount)}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="text-gray-500">Balance:</span>
+                                <div className="font-medium text-gray-900 text-xs">
+                                  {formatCurrency(transaction.balance_before)} → {formatCurrency(transaction.balance_after)}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex justify-between items-center text-xs">
+                              <div className="text-gray-500">
+                                {formatDate(transaction.transaction_date, 'datetime')}
+                              </div>
+                              <div className="flex items-center">
+                                {getSyncStatusIcon(transaction.sync_status)}
+                                <span className="ml-1 text-gray-600 capitalize">
+                                  {transaction.sync_status}
+                                </span>
+                                {transaction.is_offline && (
+                                  <span className="ml-2 text-orange-600 bg-orange-100 px-2 py-1 rounded">
+                                    Offline
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

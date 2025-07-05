@@ -70,29 +70,29 @@ const PassengerSearch: React.FC<PassengerSearchProps> = ({
   const hasActiveFilters = searchQuery.trim() || balanceStatus !== 'all' || selectedMinistry;
 
   const balanceOptions = [
-    { value: 'all', label: 'All Balances', icon: <Users className="h-4 w-4" /> },
-    { value: 'positive', label: 'Positive Balance', icon: <CheckCircle className="h-4 w-4 text-green-500" /> },
-    { value: 'low', label: 'Low Balance', icon: <AlertCircle className="h-4 w-4 text-orange-500" /> },
-    { value: 'zero', label: 'Zero Balance', icon: <Minus className="h-4 w-4 text-red-500" /> },
-    { value: 'negative', label: 'Negative Balance', icon: <AlertCircle className="h-4 w-4 text-red-600" /> }
+    { value: 'all', label: 'All Balances', icon: <Users className="h-4 w-4" />, shortLabel: 'All' },
+    { value: 'positive', label: 'Positive Balance', icon: <CheckCircle className="h-4 w-4 text-green-500" />, shortLabel: 'Positive' },
+    { value: 'low', label: 'Low Balance', icon: <AlertCircle className="h-4 w-4 text-orange-500" />, shortLabel: 'Low' },
+    { value: 'zero', label: 'Zero Balance', icon: <Minus className="h-4 w-4 text-red-500" />, shortLabel: 'Zero' },
+    { value: 'negative', label: 'Negative Balance', icon: <AlertCircle className="h-4 w-4 text-red-600" />, shortLabel: 'Negative' }
   ];
 
   return (
     <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>
       {/* Main search bar */}
-      <div className="p-4">
-        <div className="flex items-center space-x-3">
+      <div className="p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-3">
           {/* Search input */}
           <div className="flex-1 relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
+              <Search className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
             </div>
             <input
               type="text"
-              placeholder="Search by ID, name, ministry, or boarding area..."
+              placeholder="Search by ID, name, ministry..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="block w-full pl-9 sm:pl-10 pr-8 sm:pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
             {searchQuery && (
               <button
@@ -104,37 +104,45 @@ const PassengerSearch: React.FC<PassengerSearchProps> = ({
             )}
           </div>
 
-          {/* Filter toggle */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`p-2 rounded-md border transition-colors ${
-              showFilters || hasActiveFilters
-                ? 'bg-blue-50 border-blue-300 text-blue-600'
-                : 'bg-gray-50 border-gray-300 text-gray-500 hover:bg-gray-100'
-            }`}
-            title="Toggle Filters"
-          >
-            <Filter className="h-5 w-5" />
-          </button>
-
-          {/* Refresh button */}
-          {onRefresh && (
+          {/* Action buttons */}
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            {/* Filter toggle */}
             <button
-              onClick={onRefresh}
-              disabled={isLoading}
-              className={`p-2 rounded-md border border-gray-300 text-gray-500 hover:bg-gray-100 transition-colors ${
-                isLoading ? 'opacity-50 cursor-not-allowed' : ''
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center px-3 py-2 rounded-md border text-sm font-medium transition-colors ${
+                showFilters || hasActiveFilters
+                  ? 'bg-blue-50 border-blue-300 text-blue-600'
+                  : 'bg-gray-50 border-gray-300 text-gray-500 hover:bg-gray-100'
               }`}
-              title="Refresh"
+              title="Toggle Filters"
             >
-              <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+              <Filter className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="ml-2 sm:hidden">Filters</span>
+              {hasActiveFilters && (
+                <span className="ml-1 bg-blue-500 text-white text-xs rounded-full w-2 h-2 sm:w-1.5 sm:h-1.5"></span>
+              )}
             </button>
-          )}
+
+            {/* Refresh button */}
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={isLoading}
+                className={`flex items-center px-3 py-2 rounded-md border border-gray-300 text-gray-500 hover:bg-gray-100 transition-colors text-sm font-medium ${
+                  isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                title="Refresh"
+              >
+                <RefreshCw className={`h-4 w-4 sm:h-5 sm:w-5 ${isLoading ? 'animate-spin' : ''}`} />
+                <span className="ml-2 sm:hidden">Refresh</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Results summary */}
         {(totalCount !== undefined || filteredCount !== undefined) && (
-          <div className="mt-3 flex items-center justify-between text-sm text-gray-600">
+          <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0 text-xs sm:text-sm text-gray-600">
             <span>
               {filteredCount !== undefined && totalCount !== undefined ? (
                 filteredCount === totalCount ? (
@@ -152,7 +160,7 @@ const PassengerSearch: React.FC<PassengerSearchProps> = ({
             {hasActiveFilters && (
               <button
                 onClick={handleClearFilters}
-                className="text-blue-600 hover:text-blue-800 font-medium"
+                className="text-blue-600 hover:text-blue-800 font-medium text-left sm:text-right"
               >
                 Clear filters
               </button>
@@ -163,13 +171,30 @@ const PassengerSearch: React.FC<PassengerSearchProps> = ({
 
       {/* Extended filters */}
       {showFilters && (
-        <div className="border-t border-gray-200 p-4 space-y-4">
+        <div className="border-t border-gray-200 p-3 sm:p-4 space-y-4">
           {/* Balance status filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2 sm:mb-3">
               Balance Status
             </label>
-            <div className="flex flex-wrap gap-2">
+            
+            {/* Mobile: Dropdown select */}
+            <div className="block sm:hidden">
+              <select
+                value={balanceStatus}
+                onChange={(e) => setBalanceStatus(e.target.value as SearchFilters['balance_status'])}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                {balanceOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Desktop: Button group */}
+            <div className="hidden sm:flex sm:flex-wrap sm:gap-2">
               {balanceOptions.map((option) => (
                 <button
                   key={option.value}
@@ -189,13 +214,13 @@ const PassengerSearch: React.FC<PassengerSearchProps> = ({
 
           {/* Ministry filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2 sm:mb-3">
               Ministry
             </label>
             <select
               value={selectedMinistry}
               onChange={(e) => setSelectedMinistry(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
               <option value="">All Ministries</option>
               {MINISTRIES.map((ministry) => (
@@ -207,20 +232,20 @@ const PassengerSearch: React.FC<PassengerSearchProps> = ({
           </div>
 
           {/* Filter actions */}
-          <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-            <span className="text-sm text-gray-500">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 pt-3 border-t border-gray-200">
+            <span className="text-xs sm:text-sm text-gray-500">
               {hasActiveFilters ? 'Filters applied' : 'No filters applied'}
             </span>
-            <div className="flex space-x-2">
+            <div className="flex space-x-3 sm:space-x-2">
               <button
                 onClick={handleClearFilters}
-                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                className="flex-1 sm:flex-none px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
               >
                 Clear all
               </button>
               <button
                 onClick={() => setShowFilters(false)}
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="flex-1 sm:flex-none px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
                 Done
               </button>

@@ -31,7 +31,7 @@ const ToastNotification: React.FC<ToastNotificationProps> = React.memo(({
   type,
   message,
   onClose,
-  duration = 2500
+  duration = 3000 // Increased duration for mobile
 }) => {
   React.useEffect(() => {
     const timer = setTimeout(onClose, duration);
@@ -59,14 +59,17 @@ const ToastNotification: React.FC<ToastNotificationProps> = React.memo(({
   const config = typeConfig[type];
 
   return (
-    <div className={`fixed top-4 right-4 z-50 p-3 rounded-lg border shadow-lg ${config.bg} ${config.text} flex items-center gap-2 animate-in slide-in-from-right duration-300 min-w-[280px] max-w-[400px]`}>
-      {config.icon}
-      <span className="text-sm font-medium flex-1 leading-tight">{message}</span>
+    <div className={`fixed top-4 left-4 right-4 sm:top-4 sm:right-4 sm:left-auto z-50 p-3 sm:p-4 rounded-lg border shadow-lg ${config.bg} ${config.text} flex items-start gap-2 sm:gap-3 animate-in slide-in-from-top sm:slide-in-from-right duration-300 sm:min-w-[320px] sm:max-w-[400px]`}>
+      <div className="flex-shrink-0 mt-0.5">
+        {config.icon}
+      </div>
+      <span className="text-sm sm:text-base font-medium flex-1 leading-relaxed break-words">{message}</span>
       <button
         onClick={onClose}
-        className="p-1 hover:bg-black hover:bg-opacity-10 rounded transition-colors duration-150"
+        className="flex-shrink-0 p-1 hover:bg-black hover:bg-opacity-10 rounded transition-colors duration-150 touch-manipulation"
+        aria-label="Close notification"
       >
-        <X className="h-3 w-3" />
+        <X className="h-4 w-4" />
       </button>
     </div>
   );
@@ -102,28 +105,34 @@ const PassengerPill: React.FC<PassengerPillProps> = React.memo(({
     [localPassenger.current_balance, localPassenger.base_fare, localPassenger.is_active]
   );
 
-  // Size configurations - memoized to prevent recreation
+  // Enhanced size configurations for mobile - improved touch targets
   const sizeConfig = useMemo(() => ({
     sm: {
-      container: 'p-2 min-h-[80px]',
-      id: 'text-sm font-bold',
-      name: 'text-xs',
-      balance: 'text-xs',
-      icon: 'h-4 w-4',
+      container: 'p-3 min-h-[100px] sm:p-2 sm:min-h-[80px]', // Larger on mobile
+      id: 'text-base font-bold sm:text-sm',
+      name: 'text-sm sm:text-xs',
+      balance: 'text-sm sm:text-xs',
+      icon: 'h-5 w-5 sm:h-4 sm:w-4',
+      statusText: 'text-xs',
+      clickIndicator: 'text-xs'
     },
     md: {
-      container: 'p-3 min-h-[100px]',
-      id: 'text-base font-bold',
-      name: 'text-sm',
-      balance: 'text-sm',
-      icon: 'h-5 w-5',
+      container: 'p-4 min-h-[120px] sm:p-3 sm:min-h-[100px]',
+      id: 'text-lg font-bold sm:text-base',
+      name: 'text-base sm:text-sm',
+      balance: 'text-base sm:text-sm',
+      icon: 'h-6 w-6 sm:h-5 sm:w-5',
+      statusText: 'text-sm sm:text-xs',
+      clickIndicator: 'text-sm sm:text-xs'
     },
     lg: {
-      container: 'p-4 min-h-[120px]',
-      id: 'text-lg font-bold',
-      name: 'text-base',
-      balance: 'text-base',
-      icon: 'h-6 w-6',
+      container: 'p-5 min-h-[140px] sm:p-4 sm:min-h-[120px]',
+      id: 'text-xl font-bold sm:text-lg',
+      name: 'text-lg sm:text-base',
+      balance: 'text-lg sm:text-base',
+      icon: 'h-7 w-7 sm:h-6 sm:w-6',
+      statusText: 'text-base sm:text-sm',
+      clickIndicator: 'text-base sm:text-sm'
     }
   }), []);
 
@@ -144,10 +153,55 @@ const PassengerPill: React.FC<PassengerPillProps> = React.memo(({
     }
   }, [justPaid]);
 
-  // Long press handling - optimized with useCallback
+  // Enhanced touch/press handling for mobile
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
   const [isPressed, setIsPressed] = useState(false);
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    setTouchStart({ x: touch.clientX, y: touch.clientY });
+    setIsPressed(true);
+    
+    if (onLongPress) {
+      pressTimer.current = setTimeout(() => {
+        onLongPress(localPassenger);
+        // Haptic feedback for mobile devices
+        if ('vibrate' in navigator) {
+          navigator.vibrate(50);
+        }
+      }, 600); // Shorter for mobile
+    }
+  }, [onLongPress, localPassenger]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    setIsPressed(false);
+    setTouchStart(null);
+    
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchStart) return;
+    
+    const touch = e.touches[0];
+    const deltaX = Math.abs(touch.clientX - touchStart.x);
+    const deltaY = Math.abs(touch.clientY - touchStart.y);
+    
+    // Cancel long press if user moves finger too much
+    if (deltaX > 10 || deltaY > 10) {
+      if (pressTimer.current) {
+        clearTimeout(pressTimer.current);
+        pressTimer.current = null;
+      }
+      setIsPressed(false);
+    }
+  }, [touchStart]);
+
+  // Legacy mouse handlers for desktop
   const handleMouseDown = useCallback(() => {
     setIsPressed(true);
     if (onLongPress) {
@@ -178,6 +232,11 @@ const PassengerPill: React.FC<PassengerPillProps> = React.memo(({
     }
 
     if (isDisabled || isLoading) return;
+
+    // Haptic feedback for mobile
+    if ('vibrate' in navigator) {
+      navigator.vibrate(25);
+    }
 
     // Call optional onClick prop first
     if (onClick) {
@@ -229,6 +288,11 @@ const PassengerPill: React.FC<PassengerPillProps> = React.memo(({
         setLocalPassenger(updatedPassenger);
         setJustPaid(true);
 
+        // Success haptic feedback
+        if ('vibrate' in navigator) {
+          navigator.vibrate([50, 50, 50]);
+        }
+
         if (onPassengerUpdate) {
           onPassengerUpdate(updatedPassenger);
         }
@@ -257,6 +321,12 @@ const PassengerPill: React.FC<PassengerPillProps> = React.memo(({
       }
     } catch (error: any) {
       console.error('Payment error:', error);
+      
+      // Error haptic feedback
+      if ('vibrate' in navigator) {
+        navigator.vibrate([100, 50, 100]);
+      }
+      
       setNotification({
         type: 'error',
         message: `Payment failed: ${apiService.handleApiError(error)}`
@@ -281,7 +351,7 @@ const PassengerPill: React.FC<PassengerPillProps> = React.memo(({
   // Memoize tooltip text
   const tooltipText = useMemo(() => {
     if (canBoard) {
-      return `Click to deduct ${formatCurrency(localPassenger.base_fare || 0)} from ${localPassenger.full_name}`;
+      return `Tap to deduct ${formatCurrency(localPassenger.base_fare || 0)} from ${localPassenger.full_name}`;
     }
     return `Cannot board: ${!localPassenger.is_active ? 'Inactive' : 'Insufficient balance'}`;
   }, [canBoard, localPassenger.base_fare, localPassenger.full_name, localPassenger.is_active]);
@@ -298,12 +368,12 @@ const PassengerPill: React.FC<PassengerPillProps> = React.memo(({
 
       <div
         className={`
-          relative rounded-xl border-2 cursor-pointer transition-all duration-300 select-none
+          relative rounded-xl border-2 cursor-pointer transition-all duration-200 select-none touch-manipulation
           ${balanceConfig.bgColor} ${balanceConfig.borderColor} ${balanceConfig.textColor}
           ${config.container}
           ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 shadow-lg' : ''}
-          ${isPressed ? 'scale-95' : canBoard ? 'hover:scale-105' : ''}
-          ${isDisabled ? 'opacity-50 cursor-not-allowed' : canBoard ? 'hover:shadow-xl' : 'opacity-70'}
+          ${isPressed ? 'scale-95 shadow-md' : canBoard ? 'active:scale-95 hover:scale-105' : ''}
+          ${isDisabled ? 'opacity-50 cursor-not-allowed' : canBoard ? 'hover:shadow-xl active:shadow-md' : 'opacity-70'}
           ${isLoading ? 'animate-pulse' : ''}
           ${justPaid ? 'ring-2 ring-green-400 bg-green-50 animate-pulse' : ''}
           ${className}
@@ -312,16 +382,20 @@ const PassengerPill: React.FC<PassengerPillProps> = React.memo(({
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        onTouchStart={handleMouseDown}
-        onTouchEnd={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={handleTouchMove}
         title={tooltipText}
+        role="button"
+        tabIndex={0}
+        aria-label={tooltipText}
       >
         {/* Loading overlay */}
         {isLoading && (
           <div className="absolute inset-0 bg-white bg-opacity-90 rounded-xl flex items-center justify-center z-10">
             <div className="text-center">
-              <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-blue-500" />
-              <span className="text-xs font-medium text-gray-600">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-blue-500" />
+              <span className="text-sm font-medium text-gray-600">
                 Processing...
               </span>
             </div>
@@ -332,8 +406,8 @@ const PassengerPill: React.FC<PassengerPillProps> = React.memo(({
         {justPaid && (
           <div className="absolute inset-0 bg-green-500 bg-opacity-20 rounded-xl flex items-center justify-center z-10">
             <div className="text-center">
-              <Check className="h-8 w-8 mx-auto mb-1 text-green-600 animate-in zoom-in duration-300" />
-              <span className="text-xs font-bold text-green-700">
+              <Check className="h-10 w-10 mx-auto mb-1 text-green-600 animate-in zoom-in duration-300" />
+              <span className="text-sm font-bold text-green-700">
                 PAID
               </span>
             </div>
@@ -343,14 +417,14 @@ const PassengerPill: React.FC<PassengerPillProps> = React.memo(({
         {/* Selection indicator */}
         {isSelected && (
           <div className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full p-1 shadow-lg animate-in zoom-in duration-200">
-            <CheckCircle className="h-4 w-4" />
+            <CheckCircle className="h-5 w-5" />
           </div>
         )}
 
         {/* Main content */}
         <div className="flex flex-col h-full">
           {/* Header with ID and balance icon */}
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center justify-between mb-2">
             <span className={`${config.id} truncate`}>
               #{displayId}
             </span>
@@ -363,40 +437,40 @@ const PassengerPill: React.FC<PassengerPillProps> = React.memo(({
           </div>
 
           {/* Passenger name */}
-          <div className={`${config.name} text-gray-700 font-medium truncate flex-1`}>
+          <div className={`${config.name} text-gray-700 font-medium truncate flex-1 leading-relaxed`}>
             {localPassenger.full_name}
           </div>
 
           {/* Balance with enhanced styling */}
           {showBalance && (
-            <div className={`${config.balance} font-bold mt-1 flex items-center gap-1`}>
-              <DollarSign className="h-3 w-3" />
-              {formatCurrency(localPassenger.current_balance)}
+            <div className={`${config.balance} font-bold mt-2 flex items-center gap-1`}>
+              <DollarSign className="h-4 w-4 flex-shrink-0" />
+              <span className="truncate">{formatCurrency(localPassenger.current_balance)}</span>
             </div>
           )}
 
           {/* Quick status indicators */}
-          <div className="mt-1 space-y-1">
+          <div className="mt-2 space-y-1">
             {localPassenger.current_balance < 0 && (
-              <div className="text-xs text-red-600 font-bold animate-pulse">
+              <div className={`${config.statusText} text-red-600 font-bold animate-pulse`}>
                 NEGATIVE
               </div>
             )}
 
             {localPassenger.current_balance > 0 && localPassenger.current_balance <= 30 && (
-              <div className="text-xs text-orange-600 font-medium">
+              <div className={`${config.statusText} text-orange-600 font-medium`}>
                 LOW BALANCE
               </div>
             )}
 
             {localPassenger.current_balance < (localPassenger.base_fare || 0) && localPassenger.current_balance >= 0 && (
-              <div className="text-xs text-red-600 font-bold">
+              <div className={`${config.statusText} text-red-600 font-bold`}>
                 INSUFFICIENT
               </div>
             )}
 
             {canBoard && (
-              <div className="text-xs text-blue-600 font-medium">
+              <div className={`${config.statusText} text-blue-600 font-medium`}>
                 READY TO PAY
               </div>
             )}
@@ -406,17 +480,17 @@ const PassengerPill: React.FC<PassengerPillProps> = React.memo(({
         {/* Inactive overlay */}
         {!localPassenger.is_active && (
           <div className="absolute inset-0 bg-gray-500 bg-opacity-50 rounded-xl flex items-center justify-center">
-            <span className="text-xs font-bold text-white bg-gray-700 px-2 py-1 rounded shadow-lg">
+            <span className="text-sm font-bold text-white bg-gray-700 px-3 py-2 rounded shadow-lg">
               INACTIVE
             </span>
           </div>
         )}
 
-        {/* Click indicator for valid payments */}
+        {/* Click indicator for valid payments - improved for mobile */}
         {canBoard && !isLoading && !justPaid && (
-          <div className="absolute bottom-1 right-1 opacity-50">
-            <div className="text-xs text-gray-500 bg-white bg-opacity-80 px-2 py-1 rounded">
-              Click to pay
+          <div className="absolute bottom-2 right-2 opacity-60 sm:opacity-50">
+            <div className={`${config.clickIndicator} text-gray-600 bg-white bg-opacity-90 px-2 py-1 rounded shadow-sm`}>
+              Tap to pay
             </div>
           </div>
         )}
@@ -425,7 +499,7 @@ const PassengerPill: React.FC<PassengerPillProps> = React.memo(({
   );
 });
 
-// Enhanced Grid container for passenger pills - optimized
+// Enhanced Grid container for passenger pills - mobile-optimized
 export const PassengerPillGrid: React.FC<{
   passengers: Passenger[];
   selectedPassenger?: Passenger;
@@ -449,10 +523,11 @@ export const PassengerPillGrid: React.FC<{
   routeId,
   onPassengerUpdate
 }) => {
+  // Enhanced grid configurations for better mobile experience
   const gridCols = useMemo(() => ({
-    sm: 'grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8',
-    md: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6',
-    lg: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+    sm: 'grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8',
+    md: 'grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
+    lg: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
   }), []);
 
   const handleBoard = useCallback(async () => {
@@ -460,7 +535,7 @@ export const PassengerPillGrid: React.FC<{
   }, []);
 
   return (
-    <div className={`grid ${gridCols[size]} gap-4 ${className}`}>
+    <div className={`grid ${gridCols[size]} gap-3 sm:gap-4 p-2 sm:p-0 ${className}`}>
       {passengers.map((passenger) => (
         <PassengerPill
           key={passenger.id}
@@ -481,7 +556,7 @@ export const PassengerPillGrid: React.FC<{
   );
 });
 
-// Enhanced Empty state component - memoized
+// Enhanced Empty state component - mobile-optimized
 export const EmptyPassengerState: React.FC<{
   message?: string;
   showIcon?: boolean;
@@ -489,16 +564,16 @@ export const EmptyPassengerState: React.FC<{
   message = "No passengers found",
   showIcon = true
 }) => (
-  <div className="text-center py-16">
+  <div className="text-center py-12 px-4">
     {showIcon && (
-      <div className="mx-auto h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-        <User className="h-8 w-8 text-gray-400" />
+      <div className="mx-auto h-20 w-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+        <User className="h-10 w-10 text-gray-400" />
       </div>
     )}
-    <h3 className="text-xl font-semibold text-gray-900 mb-3">
+    <h3 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">
       {message}
     </h3>
-    <p className="text-gray-500 max-w-md mx-auto">
+    <p className="text-gray-500 text-base sm:text-lg max-w-md mx-auto leading-relaxed">
       Try adjusting your filters or search terms to find passengers.
     </p>
   </div>
