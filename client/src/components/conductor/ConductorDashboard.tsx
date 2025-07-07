@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Users, DollarSign, Clock, Wifi, WifiOff, RefreshCw, Plus, Filter, CreditCard, BarChart3 } from 'lucide-react';
+import { Search, Users, DollarSign, Clock, Wifi, WifiOff, RefreshCw, Plus, Filter, CreditCard, BarChart3, Edit, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import PassengerPill from './PassengerPill';
 import PassengerSearch from './PassengerSearch';
 import PassengerRegistration from './PassengerRegistration';
 import TopUpComponent from './TopUpComponent';
+import BalanceEditComponent from './BalanceEditComponent';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { usePassengers } from '../../hooks/usePassengers';
 import { useOfflineSync } from '../../hooks/useOfflineSync';
@@ -13,7 +14,6 @@ import { useBoardingStats } from '../../hooks/useBoardingStats';
 import {
   formatCurrency,
   getBalanceStatus,
-  sortPassengers,
   filterPassengers,
   formatRelativeTime,
   debounce
@@ -27,6 +27,50 @@ interface ConductorDashboardProps {
   currentRoute?: Route;
 }
 
+// Enhanced sorting types
+type SortField = 'name' | 'balance' | 'legacy_id';
+type SortOrder = 'asc' | 'desc';
+
+interface SortConfig {
+  field: SortField;
+  order: SortOrder;
+}
+
+// Enhanced sorting function
+const sortPassengers = (passengers: Passenger[], sortConfig: SortConfig): Passenger[] => {
+  return [...passengers].sort((a, b) => {
+    const { field, order } = sortConfig;
+    let aValue: string | number;
+    let bValue: string | number;
+
+    switch (field) {
+      case 'name':
+        aValue = a.full_name.toLowerCase();
+        bValue = b.full_name.toLowerCase();
+        break;
+      case 'balance':
+        aValue = a.current_balance;
+        bValue = b.current_balance;
+        break;
+      case 'legacy_id':
+        aValue = a.legacy_passenger_id || '';
+        bValue = b.legacy_passenger_id || '';
+        break;
+      default:
+        return 0;
+    }
+
+    let comparison = 0;
+    if (aValue < bValue) {
+      comparison = -1;
+    } else if (aValue > bValue) {
+      comparison = 1;
+    }
+
+    return order === 'desc' ? comparison * -1 : comparison;
+  });
+};
+
 const ConductorDashboard: React.FC<ConductorDashboardProps> = ({ user, currentRoute }) => {
   // State
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,7 +78,8 @@ const ConductorDashboard: React.FC<ConductorDashboardProps> = ({ user, currentRo
   const [showRegistration, setShowRegistration] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showTopUp, setShowTopUp] = useState(false);
-  const [activeTab, setActiveTab] = useState<'boarding' | 'topup'>('boarding');
+  const [activeTab, setActiveTab] = useState<'boarding' | 'topup' | 'edit'>('boarding');
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ field: 'name', order: 'asc' });
   const [filters, setFilters] = useState<SearchFilters>({
     balance_status: 'all',
     route_id: currentRoute?.id || ''
@@ -126,6 +171,14 @@ const ConductorDashboard: React.FC<ConductorDashboardProps> = ({ user, currentRo
     []
   );
 
+  // Handle sorting
+  const handleSort = useCallback((field: SortField) => {
+    setSortConfig(prev => ({
+      field,
+      order: prev.field === field && prev.order === 'asc' ? 'desc' : 'asc'
+    }));
+  }, []);
+
   // Filter and sort passengers
   const filteredAndSortedPassengers = useMemo(() => {
     let filtered = filterPassengers(passengers, searchQuery);
@@ -148,8 +201,9 @@ const ConductorDashboard: React.FC<ConductorDashboardProps> = ({ user, currentRo
       );
     }
 
-    return sortPassengers(filtered);
-  }, [passengers, searchQuery, filters]);
+    // Apply sorting
+    return sortPassengers(filtered, sortConfig);
+  }, [passengers, searchQuery, filters, sortConfig]);
 
   // Balance status counts
   const balanceStatusCounts = useMemo(() => {
@@ -240,7 +294,7 @@ const ConductorDashboard: React.FC<ConductorDashboardProps> = ({ user, currentRo
           await forceSyncAll();
         }
         await Promise.all([
-          refreshPassengers(), 
+          refreshPassengers(),
           refreshStats()
         ]);
       } else {
@@ -249,6 +303,33 @@ const ConductorDashboard: React.FC<ConductorDashboardProps> = ({ user, currentRo
     } catch (error) {
       console.error('Refresh failed:', error);
     }
+  };
+
+  // Sort button component
+  const SortButton: React.FC<{ field: SortField; label: string; icon?: React.ReactNode }> = ({ field, label, icon }) => {
+    const isActive = sortConfig.field === field;
+    const order = sortConfig.order;
+
+    return (
+      <button
+        onClick={() => handleSort(field)}
+        className={`flex items-center space-x-1 px-2 py-1 sm:px-3 sm:py-2 rounded-lg border text-xs sm:text-sm transition-colors ${
+          isActive
+            ? 'bg-blue-50 border-blue-300 text-blue-700'
+            : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+        }`}
+      >
+        {icon && <span className="flex-shrink-0">{icon}</span>}
+        <span>{label}</span>
+        <span className="flex-shrink-0">
+          {isActive ? (
+            order === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+          ) : (
+            <ArrowUpDown size={14} className="opacity-50" />
+          )}
+        </span>
+      </button>
+    );
   };
 
   if (loading && passengers.length === 0) {
@@ -412,11 +493,10 @@ const ConductorDashboard: React.FC<ConductorDashboardProps> = ({ user, currentRo
           <nav className="-mb-px flex overflow-x-auto">
             <button
               onClick={() => setActiveTab('boarding')}
-              className={`px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${
-                activeTab === 'boarding'
+              className={`px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === 'boarding'
                   ? 'border-blue-500 text-blue-600 bg-blue-50'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               <div className="flex items-center space-x-1 sm:space-x-2">
                 <Users size={14} />
@@ -425,15 +505,26 @@ const ConductorDashboard: React.FC<ConductorDashboardProps> = ({ user, currentRo
             </button>
             <button
               onClick={() => setActiveTab('topup')}
-              className={`px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${
-                activeTab === 'topup'
+              className={`px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === 'topup'
                   ? 'border-purple-500 text-purple-600 bg-purple-50'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               <div className="flex items-center space-x-1 sm:space-x-2">
                 <CreditCard size={14} />
                 <span>Top-up</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('edit')}
+              className={`px-4 py-2 sm:px-6 sm:py-3 text-xs sm:text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === 'edit'
+                  ? 'border-orange-500 text-orange-600 bg-orange-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+            >
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <Edit size={14} />
+                <span>Edit Balance</span>
               </div>
             </button>
           </nav>
@@ -457,11 +548,10 @@ const ConductorDashboard: React.FC<ConductorDashboardProps> = ({ user, currentRo
                     {/* Filter Toggle */}
                     <button
                       onClick={() => setShowFilters(!showFilters)}
-                      className={`flex items-center space-x-1 px-3 py-1 sm:px-4 sm:py-2 rounded-lg border text-xs sm:text-sm ${
-                        showFilters 
-                          ? 'bg-blue-50 border-blue-300 text-blue-700' 
+                      className={`flex items-center space-x-1 px-3 py-1 sm:px-4 sm:py-2 rounded-lg border text-xs sm:text-sm ${showFilters
+                          ? 'bg-blue-50 border-blue-300 text-blue-700'
                           : 'border-gray-300 text-gray-700'
-                      }`}
+                        }`}
                     >
                       <Filter size={14} />
                       <span>Filters</span>
@@ -481,7 +571,33 @@ const ConductorDashboard: React.FC<ConductorDashboardProps> = ({ user, currentRo
                 {/* Filters Panel */}
                 {showFilters && (
                   <div className="mt-3 p-3 sm:p-4 bg-gray-50 rounded-lg border">
-                    <h3 className="text-xs sm:text-sm font-medium text-gray-900 mb-2 sm:mb-3">Filter Passengers</h3>
+                    <h3 className="text-xs sm:text-sm font-medium text-gray-900 mb-2 sm:mb-3">Filter & Sort Passengers</h3>
+                    
+                    {/* Sorting Controls */}
+                    <div className="mb-4">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                        Sort by:
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        <SortButton 
+                          field="name" 
+                          label="Name" 
+                          icon={<Users size={14} />} 
+                        />
+                        <SortButton 
+                          field="balance" 
+                          label="Balance" 
+                          icon={<DollarSign size={14} />} 
+                        />
+                        <SortButton 
+                          field="legacy_id" 
+                          label="ID" 
+                          icon={<span className="text-xs font-mono">#</span>} 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Existing Filters */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
                       <div>
                         <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
@@ -515,10 +631,13 @@ const ConductorDashboard: React.FC<ConductorDashboardProps> = ({ user, currentRo
 
                       <div className="flex items-end">
                         <button
-                          onClick={() => setFilters({ balance_status: 'all', route_id: currentRoute?.id || '' })}
+                          onClick={() => {
+                            setFilters({ balance_status: 'all', route_id: currentRoute?.id || '' });
+                            setSortConfig({ field: 'name', order: 'asc' });
+                          }}
                           className="px-3 py-1 sm:px-4 sm:py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-xs sm:text-sm"
                         >
-                          Clear Filters
+                          Reset All
                         </button>
                       </div>
                     </div>
@@ -540,14 +659,20 @@ const ConductorDashboard: React.FC<ConductorDashboardProps> = ({ user, currentRo
                   <h2 className="text-base sm:text-lg font-semibold text-gray-900">
                     Passengers ({filteredAndSortedPassengers.length})
                   </h2>
-                  {lastSyncTime && (
-                    <p className="text-xs sm:text-sm text-gray-500">
-                      Last synced: {formatRelativeTime(lastSyncTime)}
-                    </p>
-                  )}
+                  <div className="flex items-center space-x-2">
+                    {/* Current sort indicator */}
+                    <span className="text-xs sm:text-sm text-gray-500">
+                      Sorted by {sortConfig.field} ({sortConfig.order === 'asc' ? 'A-Z' : 'Z-A'})
+                    </span>
+                    {lastSyncTime && (
+                      <p className="text-xs sm:text-sm text-gray-500">
+                        Last synced: {formatRelativeTime(lastSyncTime)}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                {/* Balance Status Summary */}
+               {/* Balance Status Summary */}
                 <div className="mt-1 sm:mt-2 flex flex-wrap gap-1 sm:gap-2">
                   {Object.entries(balanceStatusCounts).map(([status, count]) => (
                     <span
@@ -596,6 +721,12 @@ const ConductorDashboard: React.FC<ConductorDashboardProps> = ({ user, currentRo
 
           {activeTab === 'topup' && (
             <TopUpComponent
+              passengers={passengers}
+              onPassengerUpdate={handlePassengerUpdate}
+            />
+          )}
+          {activeTab === 'edit' && (
+            <BalanceEditComponent
               passengers={passengers}
               onPassengerUpdate={handlePassengerUpdate}
             />

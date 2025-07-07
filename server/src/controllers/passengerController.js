@@ -164,6 +164,55 @@ class PassengerController {
     }
   }
 
+  async updateBalance(req, res) {
+    try {
+      const { newBalance, reason, conductorId, routeId } = req.body;
+
+      // Validate required fields
+      if (typeof newBalance !== 'number' || newBalance < 0) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Invalid balance: must be a positive number or zero' 
+        });
+      }
+
+      if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Reason is required for balance adjustments' 
+        });
+      }
+
+      // Use conductorId and routeId from request body OR fallback to user context
+      const finalConductorId = conductorId || (req.user ? req.user.conductor_id : null);
+      const finalRouteId = routeId || (req.user ? req.user.assigned_route_id : null);
+      
+      console.log('Update balance request:', {
+        passengerId: req.params.id,
+        newBalance,
+        conductorId: finalConductorId,
+        routeId: finalRouteId,
+        reason
+      });
+
+      const passenger = await this.passenger.updateBalance(
+        req.params.id,
+        newBalance,
+        finalConductorId,
+        finalRouteId,
+        reason
+      );
+      
+      res.json({ success: true, data: passenger });
+    } catch (error) {
+      console.error('Error updating balance:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to update balance'
+      });
+    }
+  }
+
   async transferToRoute(req, res) {
     try {
       const { newRouteId, conductorId } = req.body;
@@ -205,6 +254,7 @@ module.exports = {
   deletePassenger: passengerController.deletePassenger.bind(passengerController),
   deductFare: passengerController.deductFare.bind(passengerController),
   addBalance: passengerController.addBalance.bind(passengerController),
+  updateBalance: passengerController.updateBalance.bind(passengerController),
   transferToRoute: passengerController.transferToRoute.bind(passengerController),
   getPassengerTransactions: passengerController.getPassengerTransactions.bind(passengerController)
 };

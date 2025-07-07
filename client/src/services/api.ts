@@ -212,6 +212,28 @@ class ApiService {
     return response.data;
   }
 
+  async updatePassengerBalance(passengerId: string, newBalance: number, reason: string, conductorId?: string, routeId?: string ): Promise<ApiResponse<Transaction>> {
+  // Validate inputs
+  if (newBalance < 0) {
+    throw new Error('Balance cannot be negative');
+  }
+  if (!reason.trim()) {
+    throw new Error('Reason is required for balance adjustments');
+  }
+
+  const response = await this.api.put<ApiResponse<Transaction>>(
+    `/passengers/${passengerId}/balance`,
+    {
+      newBalance,
+      reason,
+      conductorId,
+      routeId
+    }
+  );
+  
+  return response.data;
+}
+
   async transferPassenger(passengerId: string, newRouteId: string): Promise<ApiResponse<Passenger>> {
     const response = await this.api.post<ApiResponse<Passenger>>(`/passengers/${passengerId}/transfer`, {
       route_id: newRouteId

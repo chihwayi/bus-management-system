@@ -28,6 +28,9 @@ router.post('/:id/board', passengerController.deductFare);
 // Add balance (top-up)
 router.post('/:id/topup', passengerController.addBalance);
 
+// Update balance (direct set)
+router.put('/:id/balance', passengerController.updateBalance);
+
 // Transfer passenger to different route
 router.post('/:id/transfer', passengerController.transferToRoute);
 
